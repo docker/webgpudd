@@ -56,24 +56,19 @@ int TCPCommandServer::initTCP() {
 int TCPCommandServer::initUnix() {
     struct sockaddr_un srv_addr;
     int listenfd;
-    std::cerr << "creating socket" << std::endl;
 
     listenfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (listenfd < 0) {
-        std::cerr << "failed to create socket: " << errno << " " << std::string(strerror(errno)) << std::endl;
         return -errno;
     }
-    std::cerr << "created socket" << std::endl;
 
     memset(&srv_addr, 0, sizeof(srv_addr));
     srv_addr.sun_family = AF_UNIX;
     strncpy(srv_addr.sun_path, "/tmp/dd-dawn.sock", sizeof(srv_addr.sun_path) - 1);
-    std::cerr << "will bind" << std::endl;
 
     if (bind(listenfd, (struct sockaddr *) &srv_addr, sizeof(srv_addr)) < 0) {
         return -errno;
     }
-    std::cout << "will listen" << std::endl;
 
     if (listen(listenfd, 1) < 0) {
         return -errno;
@@ -84,7 +79,7 @@ int TCPCommandServer::initUnix() {
 }
 
 int TCPCommandServer::Init() {
-    return initUnix();
+    return initTCP();
 }
 
 TCPCommandServerConnection* TCPCommandServer::Accept() {

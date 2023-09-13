@@ -3,12 +3,9 @@
 #include <string>
 #include <thread>
 
-#include <dawn/dawn_proc.h>
 #include <dawn/webgpu.h>
-#include <dawn/wire/WireClient.h>
 
-#include "client_tcp.h"
-#include "command_buffer.h"
+#include "webgpudd.h"
 
 std::mutex m;
 std::condition_variable cv;
@@ -21,6 +18,18 @@ void adapterRequestCb(WGPURequestAdapterStatus status, WGPUAdapter adapter, char
     {
         std::unique_lock lk(m);
         *((WGPUAdapter*) userdata) = adapter;
+    }
+    cv.notify_all();
+}
+
+void deviceRequestCb(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * userdata) {
+    if (message != nullptr) {
+        std::cout << "device request message: " << message << std::endl;
+    }
+    std::cout << "assigining device handle" << std::endl;
+    {
+        std::unique_lock lk(m);
+        *((WGPUDevice*) userdata) = device;
     }
     cv.notify_all();
 }
@@ -43,31 +52,6 @@ static void handle_queue_done(WGPUQueueWorkDoneStatus status, void * userdata) {
     cv.notify_all();
 }
 
-void PrintDeviceError(WGPUErrorType errorType, const char* message, void*) {
-    const char* errorTypeName = "";
-    switch (errorType) {
-        case WGPUErrorType_Validation:
-            errorTypeName = "Validation";
-            break;
-        case WGPUErrorType_OutOfMemory:
-            errorTypeName = "Out of memory";
-            break;
-        case WGPUErrorType_Unknown:
-            errorTypeName = "Unknown";
-            break;
-        case WGPUErrorType_DeviceLost:
-            errorTypeName = "Device lost";
-            break;
-        default:
-            return;
-    }
-    std::cout << errorTypeName << " error: " << message << std::endl;
-}
-
-void DeviceLogCallback(WGPULoggingType type, const char* message, void*) {
-    std::cout << "Device log: " << message << std::endl;
-}
-
 void multiplyMatrices(uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
     for (int i = 0; i < dim; ++i) {
         for (int j = 0; j < dim; ++j) {
@@ -78,7 +62,7 @@ void multiplyMatrices(uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
     }
 }
 
-void multiplyMatricesGPU(WGPUDevice device, SendBuffer* c2sBuf, WGPUQueue queue, uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
+void multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
     uint32_t mlen = dim * dim, batchsz = 64;
     uint32_t msize = mlen * sizeof(a[0]);
     WGPUShaderModuleDescriptor shdesc = {};
@@ -255,7 +239,7 @@ void multiplyMatricesGPU(WGPUDevice device, SendBuffer* c2sBuf, WGPUQueue queue,
 
     bool done = false;
     wgpuBufferMapAsync(res_staging, WGPUMapMode_Read, 0, msize, handle_buffer_map, &done);
-    c2sBuf->Flush();
+    webGPUDDFlush();
     while (!done) {
         wgpuDeviceTick(device);
         using namespace std::chrono_literals;
@@ -266,7 +250,7 @@ void multiplyMatricesGPU(WGPUDevice device, SendBuffer* c2sBuf, WGPUQueue queue,
     std::cout << "GPU time = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
 
     auto buf = (uint32_t *)wgpuBufferGetConstMappedRange(res_staging, 0, msize);
-    c2sBuf->Flush();
+    webGPUDDFlush();
     if (buf == nullptr) {
         std::cout << "RESULT IS NULL" << std::endl;
     } else {
@@ -277,65 +261,37 @@ void multiplyMatricesGPU(WGPUDevice device, SendBuffer* c2sBuf, WGPUQueue queue,
 }
 
 int main(int argc, char** argv) {
-    DawnProcTable procs = dawn::wire::client::GetProcs();
-
-    auto c2sBuf = new SendBuffer();
-    auto s2cBuf = new RecvBuffer();
-
-    dawn::wire::WireClientDescriptor clientDesc = {};
-    clientDesc.serializer = c2sBuf;
-
-    auto wireClient = new dawn::wire::WireClient(clientDesc);
-
-    TCPCommandClientConnection cmdt;
-
-    int err = cmdt.Init();
-    if (err < 0) {
-        return err;
-    }
-
-    s2cBuf->SetHandler(wireClient);
-    c2sBuf->SetTransport(&cmdt);
-
-    dawnProcSetProcs(&procs);
-
-    std::thread recvt([&] {
-        cmdt.Recv(s2cBuf);
-    });
-
-    std::cout << "creating instance" << std::endl;
-
-    auto wi = wireClient->ReserveInstance();
-
-    std::cout << "reserved instance " << wi.id << " generation " << wi.generation << std::endl;
-
-    std::cout << "requesting adapter" << std::endl;
+    std::cout << "initialising runtime" << std::endl;
+    int ret = initWebGPUDD();
+    std::cout << "getting instance" << std::endl;
+    auto instance = getWebGPUDDInstance();
+    std::cout << "got instance" << std::endl;
 
     WGPUAdapter adapter = nullptr;
-
-    wgpuInstanceRequestAdapter(wi.instance, nullptr, adapterRequestCb, &adapter);
-    c2sBuf->Flush();
-
+    wgpuInstanceRequestAdapter(instance, nullptr, adapterRequestCb, &adapter);
+    std::cout << "adapter requested" << std::endl;
+    webGPUDDFlush();
     {
         std::unique_lock lk(m);
         cv.wait(lk, [&] { return adapter != nullptr; });
     }
+    std::cout << "got adapter" << std::endl;
 
-    std::cout << "adapter received" << std::endl;
+    WGPUDevice device = nullptr;
+    wgpuAdapterRequestDevice(adapter, nullptr, deviceRequestCb, &device);
+    std::cout << "device requested" << std::endl;
+    webGPUDDFlush();
+    {
+        std::unique_lock lk(m);
+        cv.wait(lk, [&] { return device != nullptr; });
+    }
+    std::cout << "got device" << std::endl;
 
-    WGPUAdapterProperties adapterProperties;
-    wgpuAdapterGetProperties(adapter, &adapterProperties);
+    webGPUDDSetDefaultDeviceCallbacks(device);
+    std::cout << "set callbacks" << std::endl;
 
-    std::cout << adapterProperties.vendorName << " " << adapterProperties.architecture << std::endl;
-
-    auto device = wireClient->ReserveDevice();
-    std::cout << "reserved device " << device.id << " generation " << device.generation << std::endl;
-
-    procs.deviceSetUncapturedErrorCallback(device.device, PrintDeviceError, nullptr);
-    procs.deviceSetLoggingCallback(device.device, DeviceLogCallback, nullptr);
-
-    auto queue = wgpuDeviceGetQueue(device.device);
-    c2sBuf->Flush();
+    auto queue = wgpuDeviceGetQueue(device);
+    webGPUDDFlush();
     if (queue == nullptr) {
         std::cout << "queue is null" << std::endl;
     } else {
@@ -353,7 +309,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < mb.size(); ++i)
         mb[i] = 3;
 
-    multiplyMatricesGPU(device.device, c2sBuf, queue, &ma[0], &mb[0], &res[0], dimension);
+    multiplyMatricesGPU(device, queue, &ma[0], &mb[0], &res[0], dimension);
 
     std::chrono::steady_clock::time_point beginCPU = std::chrono::steady_clock::now();
     multiplyMatrices(&ma[0], &mb[0], &res[0], dimension);
@@ -361,7 +317,7 @@ int main(int argc, char** argv) {
     std::cout << "CPU time = " << std::chrono::duration_cast<std::chrono::microseconds>(endCPU - beginCPU).count() << "[µs]" << std::endl;
     std::cout << "RESULT: " << res[0] << ", " << res[1] << ", " << res[2] << ", " << res[3] << std::endl;
 
-    recvt.join();
 
+    finaliseWebGPUDD();
     return 0;
 }

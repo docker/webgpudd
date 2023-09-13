@@ -22,6 +22,18 @@ void adapterRequestCb(WGPURequestAdapterStatus status, WGPUAdapter adapter, char
     cv.notify_all();
 }
 
+void deviceRequestCb(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * userdata) {
+    if (message != nullptr) {
+        std::cout << "device request message: " << message << std::endl;
+    }
+    std::cout << "assigining device handle" << std::endl;
+    {
+        std::unique_lock lk(m);
+        *((WGPUDevice*) userdata) = device;
+    }
+    cv.notify_all();
+}
+
 static void handle_buffer_map(WGPUBufferMapAsyncStatus status, void *userdata) {
     std::cout << "buffer_map status=" << status << std::endl;
     {
@@ -293,7 +305,15 @@ int main(int argc, char** argv) {
     options.backendType = wgpu::BackendType::Metal;
 
     // Get an adapter for the backend to use, and create the device.
-    dawn::native::Adapter backendAdapter = instance->EnumerateAdapters(&options)[0];
+    // dawn::native::Adapter backendAdapter = instance->EnumerateAdapters(&options)[0];
+    WGPUAdapter backendAdapter = nullptr;
+    wgpuInstanceRequestAdapter(instance->Get(), nullptr, adapterRequestCb, &backendAdapter);
+    std::cout << "adapter requested" << std::endl;
+    {
+        std::unique_lock lk(m);
+        cv.wait(lk, [&] { return backendAdapter != nullptr; });
+    }
+    std::cout << "got adapter" << std::endl;
 
     std::vector<const char*> enableToggleNames;
     std::vector<const char*> disabledToggleNames;
@@ -315,7 +335,14 @@ int main(int argc, char** argv) {
     WGPUDeviceDescriptor deviceDesc = {};
     deviceDesc.nextInChain = reinterpret_cast<WGPUChainedStruct*>(&toggles);
 
-    WGPUDevice device = backendAdapter.CreateDevice(&deviceDesc);
+    // WGPUDevice device = backendAdapter.CreateDevice(&deviceDesc);
+
+    WGPUDevice device = nullptr;
+    wgpuAdapterRequestDevice(backendAdapter, nullptr, deviceRequestCb, &device);
+    {
+        std::unique_lock lk(m);
+        cv.wait(lk, [&] { return device != nullptr; });
+    }
 
     procs.deviceSetUncapturedErrorCallback(device, PrintDeviceError, nullptr);
     procs.deviceSetLoggingCallback(device, DeviceLogCallback, nullptr);

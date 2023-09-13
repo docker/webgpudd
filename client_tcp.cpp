@@ -71,7 +71,7 @@ int TCPCommandClientConnection::initUnix() {
 }
 
 int TCPCommandClientConnection::Init() {
-    return initUnix();
+    return initTCP();
 }
 
 int TCPCommandTransport::Send(char* buf, size_t sz) {
@@ -82,7 +82,6 @@ int TCPCommandTransport::Send(char* buf, size_t sz) {
     std::array<char, 65536> send_buf;
     ssize_t nsent;
     size_t soff = 0;
-    // std::cout << "sending a " << sz << " byte command" << std::endl;
     for (; soff < sz; soff += send_buf.size()) {
         size_t chunksz = sz - soff;
         if (chunksz > send_buf.size()) {
@@ -91,7 +90,6 @@ int TCPCommandTransport::Send(char* buf, size_t sz) {
         std::memcpy(&send_buf[0], &buf[soff], chunksz);
         nsent = send(mConnfd, &send_buf[0], chunksz, 0);
         if (nsent < 0) {
-            // std::cout << "failed to send command: " << errno << std::endl;
             return -errno;
         }
     }
@@ -108,19 +106,13 @@ int TCPCommandTransport::Recv(RecvBuffer* rbuf) {
     size_t cmd_len, cmd_len_left, hdr_len_left = sizeof(command_tlv);
     void* cmd_buf;
     while (1) {
-        // std::cout << "about to receive command data on " << mConnfd << std::endl;
-
         nread = recv(mConnfd, &recv_buf[0], recv_buf.size(), 0);
         if (nread <= 0) {
             if (nread == 0) {
-                // std::cout << "peer terminated connection" << std::endl;
                 return 0;
             }
-            // std::cout << "failed to receive command data: " << nread << " " << strerror(errno) << std::endl;
             return -errno;
         }
-
-        // std::cout << "read " << nread << " byte buffer" << std::endl;
 
         auto flush_recvd = false;
         auto bytes_left = nread;
@@ -162,7 +154,7 @@ int TCPCommandTransport::Recv(RecvBuffer* rbuf) {
             }
 
 flush:
-            if (flush_recvd) { // TODO: could also send a "flush" TLV
+            if (flush_recvd) {
                 rbuf->Flush(); // TODO: handle error
                 flush_recvd = false;
             }
