@@ -4,6 +4,9 @@
 
 #include "command_buffer.h"
 
+SendBuffer::SendBuffer() noexcept {}
+SendBuffer::~SendBuffer() noexcept {}
+
 size_t SendBuffer::GetMaximumAllocationSize() const {
     return mBuffer.size() - sizeof(command_tlv);
 }
@@ -41,6 +44,9 @@ bool SendBuffer::Flush() {
 void SendBuffer::SetTransport(CommandTransport* transport) {
     mTransport = transport;
 }
+
+RecvBuffer::RecvBuffer() noexcept {}
+RecvBuffer::~RecvBuffer() noexcept {}
 
 size_t RecvBuffer::GetMaximumAllocationSize() const {
     return mBuffer.size() - sizeof(command_tlv);

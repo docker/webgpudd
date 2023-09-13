@@ -17,8 +17,8 @@ class CommandTransport {
 
 class SendBuffer final : public dawn::wire::CommandSerializer {
   public:
-    SendBuffer() {};
-    ~SendBuffer() {};
+    SendBuffer() noexcept;
+    ~SendBuffer() noexcept;
 
     size_t GetMaximumAllocationSize() const override;
 
@@ -35,8 +35,8 @@ class SendBuffer final : public dawn::wire::CommandSerializer {
 
 class RecvBuffer final : public dawn::wire::CommandSerializer {
   public:
-    RecvBuffer() {};
-    ~RecvBuffer() {};
+    RecvBuffer() noexcept;
+    ~RecvBuffer() noexcept;
 
     size_t GetMaximumAllocationSize() const override;
 
