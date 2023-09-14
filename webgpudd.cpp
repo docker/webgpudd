@@ -7,31 +7,6 @@
 #include "client_tcp.h"
 #include "command_buffer.h"
 
-static void PrintDeviceError(WGPUErrorType errorType, const char* message, void*) {
-    const char* errorTypeName = "";
-    switch (errorType) {
-        case WGPUErrorType_Validation:
-            errorTypeName = "Validation";
-            break;
-        case WGPUErrorType_OutOfMemory:
-            errorTypeName = "Out of memory";
-            break;
-        case WGPUErrorType_Unknown:
-            errorTypeName = "Unknown";
-            break;
-        case WGPUErrorType_DeviceLost:
-            errorTypeName = "Device lost";
-            break;
-        default:
-            return;
-    }
-    std::cout << errorTypeName << " error: " << message << std::endl;
-}
-
-static void DeviceLogCallback(WGPULoggingType type, const char* message, void*) {
-    std::cout << "Device log: " << message << std::endl;
-}
-
 struct webGPUDDRuntime {
     const DawnProcTable *procs;
     dawn::wire::WireClient* wireClient;
@@ -92,9 +67,4 @@ int finaliseWebGPUDD() {
 
 int webGPUDDFlush() {
     return runtime.c2sBuf->Flush();
-}
-
-void webGPUDDSetDefaultDeviceCallbacks(WGPUDevice device) {
-    runtime.procs->deviceSetUncapturedErrorCallback(device, PrintDeviceError, nullptr);
-    runtime.procs->deviceSetLoggingCallback(device, DeviceLogCallback, nullptr);
 }

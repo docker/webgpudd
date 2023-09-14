@@ -7,6 +7,5 @@ int initWebGPUDD();
 WGPUInstance getWebGPUDDInstance();
 int finaliseWebGPUDD();
 int webGPUDDFlush();
-void webGPUDDSetDefaultDeviceCallbacks(WGPUDevice device);
 
 #endif /* WEBGPUDD_H */
