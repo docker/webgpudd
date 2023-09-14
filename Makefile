@@ -47,7 +47,7 @@ $(OUT_DIR)/%.o: %.cpp $(HEADERS) | $(OUT_DIR)
 
 $(OUT_DIR)/%-native.o: %.cpp $(HEADERS) | $(OUT_DIR)
 	@mkdir -p $(@D)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -DBACKEND_DAWN_NATIVE -o $@ -c $<
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -I ./include -DBACKEND_DAWN_NATIVE -o $@ -c $<
 
 $(OUT_DIR)/%-webgpudd.o: %.cpp $(HEADERS) | $(OUT_DIR)
 	@mkdir -p $(@D)

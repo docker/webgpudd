@@ -3,7 +3,7 @@
 #include <string>
 #include <thread>
 
-#include <dawn/webgpu.h>
+#include <webgpu.h>
 
 #ifdef BACKEND_DAWN_NATIVE
 #include <dawn/dawn_proc.h>
