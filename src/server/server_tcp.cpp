@@ -89,8 +89,6 @@ TCPCommandServerConnection* TCPCommandServer::Accept() {
     if (connfd < 0) {
         return nullptr;
     }
-    int yes = 1;
-    int result = setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, (char *) &yes, sizeof(int));
     auto tcsc = new TCPCommandServerConnection();
     tcsc->Init(connfd);
     return tcsc;

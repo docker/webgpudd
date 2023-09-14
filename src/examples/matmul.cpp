@@ -52,15 +52,6 @@ static void handle_buffer_map(WGPUBufferMapAsyncStatus status, void *userdata) {
     cv.notify_all();
 }
 
-static void handle_queue_done(WGPUQueueWorkDoneStatus status, void * userdata) {
-    std::cout << "queue done status=" << status << std::endl;
-    {
-        std::unique_lock lk(m);
-        *((bool*)userdata) = true;
-    }
-    cv.notify_all();
-}
-
 void PrintDeviceError(WGPUErrorType errorType, const char* message, void*) {
     const char* errorTypeName = "";
     switch (errorType) {
@@ -96,8 +87,8 @@ void multiplyMatrices(uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
     }
 }
 
-void multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
-    uint32_t mlen = dim * dim, batchsz = 64;
+int multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
+    uint32_t mlen = dim * dim;
     uint32_t msize = mlen * sizeof(a[0]);
     WGPUShaderModuleDescriptor shdesc = {};
     WGPUShaderModuleWGSLDescriptor wgsldesc = {};
@@ -140,9 +131,8 @@ void multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32
 
     auto smod = wgpuDeviceCreateShaderModule(device, &shdesc);
     if (smod == nullptr) {
-        std::cout << "shader module is null" << std::endl;
-    } else {
-        std::cout << "shader module is not null" << std::endl;
+        std::cerr << "Failed to create the shader module" << std::endl;
+        return -1;
     }
 
     WGPUComputePipelineDescriptor pipd = {
@@ -156,8 +146,6 @@ void multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32
     auto compute_pipeline = wgpuDeviceCreateComputePipeline(device, &pipd);
 
     auto bind_group_layout = wgpuComputePipelineGetBindGroupLayout(compute_pipeline, 0);
-
-    for (int pass = 0; pass < 10; ++pass) {
 
     WGPUBufferDescriptor res_staging_desc = {
                   .label = "result_staging_buffer",
@@ -247,9 +235,8 @@ void multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32
     };
     auto cenc = wgpuDeviceCreateCommandEncoder(device, &cedesc);
     if (cenc == nullptr) {
-        std::cout << "encoder is null" << std::endl;
-    } else {
-        std::cout << "encoder is not null" << std::endl;
+        std::cerr << "Failed to create a command encoder" << std::endl;
+        return -1;
     }
 
     WGPUComputePassDescriptor cpdesc = {
@@ -290,15 +277,16 @@ void multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32
     webGPUDDFlush();
 #endif /* BACKEND_WEBGPUDD */
     if (buf == nullptr) {
-        std::cout << "RESULT IS NULL" << std::endl;
-    } else {
-        std::cout << "RESULT: " << buf[0] << ", " << buf[1] << ", " << buf[2] << ", " << buf[3] << std::endl;
+        std::cerr << "Failed to retrieve computation results" << std::endl;
+        return -1;
     }
+    std::cout << "RESULT: " << buf[0] << ", " << buf[1] << ", " << buf[2] << ", " << buf[3] << std::endl;
 
-    }
+    return 0;
 }
 
 int main(int argc, char** argv) {
+    int ret;
 #ifdef BACKEND_DAWN_NATIVE
     DawnProcTable procs = dawn::native::GetProcs();
     dawnProcSetProcs(&procs);
@@ -308,12 +296,19 @@ int main(int argc, char** argv) {
 
 #ifdef BACKEND_WEBGPUDD
     std::cout << "initialising runtime" << std::endl;
-    int ret = initWebGPUDD();
+    ret = initWebGPUDD();
+    if (ret) {
+        std::cerr << "Failed to initialise the WebGPU client: " << ret << std::endl;
+        return ret;
+    }
     std::cout << "getting instance" << std::endl;
     auto instance = getWebGPUDDInstance();
 #endif /* BACKEND_WEBGPUDD */
 
-    std::cout << "got instance" << std::endl;
+    if (instance == nullptr) {
+        std::cerr << "Failed to create a WebGPU instance" << std::endl;
+        return -1;
+    }
 
     WGPUAdapter adapter = nullptr;
     wgpuInstanceRequestAdapter(instance, nullptr, adapterRequestCb, &adapter);
@@ -343,13 +338,8 @@ int main(int argc, char** argv) {
     wgpuDeviceSetLoggingCallback(device, DeviceLogCallback, nullptr);
 
     auto queue = wgpuDeviceGetQueue(device);
-#ifdef BACKEND_WEBGPUDD
-    webGPUDDFlush();
-#endif /* BACKEND_WEBGPUDD */
     if (queue == nullptr) {
-        std::cout << "queue is null" << std::endl;
-    } else {
-        std::cout << "queue is not null" << std::endl;
+        std::cerr << "Failed to obtain device queue" << std::endl;
     }
 
     constexpr uint32_t dimension = 768;
@@ -363,7 +353,11 @@ int main(int argc, char** argv) {
     for (int i = 0; i < mb.size(); ++i)
         mb[i] = 3;
 
-    multiplyMatricesGPU(device, queue, &ma[0], &mb[0], &res[0], dimension);
+    ret = multiplyMatricesGPU(device, queue, &ma[0], &mb[0], &res[0], dimension);
+    if (ret) {
+        std::cerr << "GPU computation failed" << std::endl;
+        return ret;
+    }
 
     std::chrono::steady_clock::time_point beginCPU = std::chrono::steady_clock::now();
     multiplyMatrices(&ma[0], &mb[0], &res[0], dimension);

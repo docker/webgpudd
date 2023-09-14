@@ -17,7 +17,7 @@ MATMUL_NATIVE_OBJS := $(MATMUL_NATIVE_SRC:%.cpp=$(OUT_DIR)/%-native.o)
 DAWN_BUILD_DIR ?= ../dawn/out/Release
 INCLUDES := -I $(DAWN_BUILD_DIR)/gen/include -I ../dawn/include
 
-CXXFLAGS = -fPIC -O2 -std=c++17 -fno-exceptions -fno-rtti
+CXXFLAGS = -fPIC -O2 -std=c++17 -fno-exceptions -fno-rtti -Wall -Werror
 CXX = g++
 
 DAWN_CLIENT_DEPS=-L $(DAWN_BUILD_DIR)/src/dawn -l dawn_proc -L $(DAWN_BUILD_DIR)/src/dawn/wire -l dawn_wire -L $(DAWN_BUILD_DIR)/src/dawn/common -l dawn_common

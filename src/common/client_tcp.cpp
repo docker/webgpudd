@@ -25,8 +25,7 @@ TCPCommandTransport::~TCPCommandTransport() noexcept {
 }
 
 int TCPCommandClientConnection::initTCP() {
-    struct addrinfo *srvaddrs, *srvaddr;
-    socklen_t peer_addr_size;
+    struct addrinfo *srvaddrs;
     struct addrinfo hints;
     int connfd, ret;
     const char *webgpudd_addr = std::getenv("WEBGPUDD_ADDR");
@@ -52,9 +51,6 @@ int TCPCommandClientConnection::initTCP() {
         return ret;
     }
 
-    int yes = 1;
-    int result = setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, (char *) &yes, sizeof(int));
-
     if (connect(connfd, srvaddrs->ai_addr, srvaddrs->ai_addrlen) < 0) {
         return -errno;
     }
@@ -64,8 +60,7 @@ int TCPCommandClientConnection::initTCP() {
 }
 
 int TCPCommandClientConnection::initUnix() {
-    struct sockaddr_un srv_addr, peer_addr;
-    socklen_t peer_addr_size;
+    struct sockaddr_un srv_addr;
     int connfd;
 
     connfd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -118,7 +113,7 @@ int TCPCommandTransport::Recv(RecvBuffer* rbuf) {
     std::array<char, 65536> recv_buf;
     bool recv_cmd = false;
     command_tlv cmd;
-    size_t cmd_len, cmd_len_left, hdr_len_left = sizeof(command_tlv);
+    ssize_t cmd_len, cmd_len_left, hdr_len_left = sizeof(command_tlv);
     void* cmd_buf;
     while (1) {
         nread = recv(mConnfd, &recv_buf[0], recv_buf.size(), 0);
@@ -150,7 +145,7 @@ int TCPCommandTransport::Recv(RecvBuffer* rbuf) {
                 cmd_buf = rbuf->GetCmdSpace(cmd.len);
                 auto ncmdbytes = bytes_left;
                 cmd_len_left = cmd_len = cmd.len;
-                if (ncmdbytes >= cmd.len) {
+                if (ncmdbytes >= (ssize_t) cmd.len) {
                     ncmdbytes = cmd.len;
                     recv_cmd = false;
                 }
