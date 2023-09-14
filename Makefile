@@ -31,7 +31,7 @@ libwebgpudd: $(LIB_OBJS) $(COMMON_OBJS)
 	$(CXX) $(CXXFLAGS) -shared $(LIB_OBJS) $(COMMON_OBJS) -o $(OUT_DIR)/libwebgpudd.so $(DAWN_CLIENT_DEPS)
 
 server: $(SRV_OBJS) $(COMMON_OBJS)
-	$(CXX) $(CXXFLAGS) $(SRV_OBJS) $(COMMON_OBJS) -o $(OUT_DIR)/server $(DAWN_SERVER_DEPS)
+	$(CXX) $(CXXFLAGS) $(SRV_OBJS) $(COMMON_OBJS) -o $(OUT_DIR)/com.docker.wgpu-server $(DAWN_SERVER_DEPS)
 
 matmul-dd: $(MATMUL_OBJS) libwebgpudd
 	$(CXX) $(CXXFLAGS) $(MATMUL_OBJS) -o $(OUT_DIR)/matmul-dd -L $(OUT_DIR) -lwebgpudd
