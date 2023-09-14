@@ -15,7 +15,7 @@ macOS and Linux).
 Aside from these the repo contains examples of how to use libwebgpudd.so
 (currently `matmul.cpp`, build target `matmul-dd`).
 
-## Building
+## Building host binaries
 
 The Docker Desktop WebGPU runtime is built on top of Dawn (https://dawn.googlesource.com/dawn)
 so start by downloading and building it. To do that, follow instructions in
@@ -36,6 +36,20 @@ To build the server:
 To build the matrix multiplication example code:
 
     DAWN_BUILD_DIR=<path to the Dawn build> make matmul-dd
+
+## Building DD binaries
+
+To build the client side of webgpudd simply run:
+
+    docker build .
+
+For now this creates an image with libwebgpu and examples installed.
+Instructions on how to use the examples also get installed in the image. Don't
+forget to run:
+
+    ./out/server
+
+on the host before running the example code inside DD.
 
 ## Running samples on macOS
 
