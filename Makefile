@@ -1,17 +1,22 @@
 OUT_DIR = out
+
 HEADERS := $(shell find . -name '*.h')
-LIB_SRC := command_buffer.cpp client_tcp.cpp webgpudd.cpp
-SRV_SRC :=  command_buffer.cpp client_tcp.cpp server_tcp.cpp server.cpp
-MATMUL_SRC := matmul.cpp
-MATMUL_NATIVE_SRC := matmul.cpp
-SRC := $(shell find . -name '*.cpp')
-OBJS := $(SRC:%.cpp=$(OUT_DIR)/%.o)
+
+COMMON_SRC := $(shell find src/common -name '*.cpp')
+LIB_SRC := $(shell find src/client -name '*.cpp')
+SRV_SRC := $(shell find src/server -name '*.cpp')
+MATMUL_SRC := src/examples/matmul.cpp
+MATMUL_NATIVE_SRC := src/examples/matmul.cpp
+
+COMMON_OBJS := $(COMMON_SRC:%.cpp=$(OUT_DIR)/%.o)
 LIB_OBJS := $(LIB_SRC:%.cpp=$(OUT_DIR)/%.o)
 SRV_OBJS := $(SRV_SRC:%.cpp=$(OUT_DIR)/%.o)
 MATMUL_OBJS := $(MATMUL_SRC:%.cpp=$(OUT_DIR)/%-webgpudd.o)
 MATMUL_NATIVE_OBJS := $(MATMUL_NATIVE_SRC:%.cpp=$(OUT_DIR)/%-native.o)
+
 DAWN_BUILD_DIR ?= ../dawn/out/Release
 INCLUDES := -I $(DAWN_BUILD_DIR)/gen/include -I ../dawn/include
+
 CXXFLAGS = -fPIC -O2 -arch arm64 -std=c++17 -fno-exceptions -fno-rtti
 CXX = g++
 
@@ -21,11 +26,11 @@ DAWN_SERVER_DEPS=$(DAWN_BUILD_DIR)/src/dawn/libdawn_proc.a $(DAWN_BUILD_DIR)/src
 .PHONY: clean all
 all: server matmul-dd
 
-libwebgpudd: $(LIB_OBJS)
-	$(CXX) $(CXXFLAGS) $(DAWN_CLIENT_DEPS) -shared $(LIB_OBJS) -o $(OUT_DIR)/libwebgpudd.so
+libwebgpudd: $(LIB_OBJS) $(COMMON_OBJS)
+	$(CXX) $(CXXFLAGS) $(DAWN_CLIENT_DEPS) -shared $(LIB_OBJS) $(COMMON_OBJS) -o $(OUT_DIR)/libwebgpudd.so
 
-server: $(SRV_OBJS)
-	$(CXX) $(CXXFLAGS) $(DAWN_SERVER_DEPS) $(SRV_OBJS) -o $(OUT_DIR)/server
+server: $(SRV_OBJS) $(COMMON_OBJS)
+	$(CXX) $(CXXFLAGS) $(DAWN_SERVER_DEPS) $(SRV_OBJS) $(COMMON_OBJS) -o $(OUT_DIR)/server
 
 matmul-dd: $(MATMUL_OBJS) libwebgpudd
 	$(CXX) $(CXXFLAGS) -L $(OUT_DIR) -lwebgpudd $(MATMUL_OBJS) -o $(OUT_DIR)/matmul-dd
@@ -37,13 +42,16 @@ $(OUT_DIR):
 	mkdir $(OUT_DIR)
 
 $(OUT_DIR)/%.o: %.cpp $(HEADERS) | $(OUT_DIR)
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ -c $<
 
 $(OUT_DIR)/%-native.o: %.cpp $(HEADERS) | $(OUT_DIR)
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -DBACKEND_DAWN_NATIVE -o $@ -c $<
 
 $(OUT_DIR)/%-webgpudd.o: %.cpp $(HEADERS) | $(OUT_DIR)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -DBACKEND_WEBGPUDD -o $@ -c $<
+	@mkdir -p $(@D)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -I ./include -DBACKEND_WEBGPUDD -o $@ -c $<
 
 clean:
 	rm -r $(OUT_DIR)

@@ -7,8 +7,8 @@
 #include <dawn/native/DawnNative.h>
 #include <dawn/wire/WireServer.h>
 
-#include "client_tcp.h"
-#include "command_buffer.h"
+#include "../common/client_tcp.h"
+#include "../common/command_buffer.h"
 #include "server_tcp.h"
 
 class DDWGPUServer : public dawn::wire::CommandHandler {

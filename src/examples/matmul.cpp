@@ -11,7 +11,7 @@
 #endif /* BACKEND_DAWN_NATIVE */
 
 #ifdef BACKEND_WEBGPUDD
-#include "webgpudd.h"
+#include <webgpudd.h>
 #endif /* BACKEND_WEBGPUDD */
 
 std::mutex m;

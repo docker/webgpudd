@@ -9,8 +9,8 @@
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
-#include "client_tcp.h"
-#include "command_buffer.h"
+#include "../common/client_tcp.h"
+#include "../common/command_buffer.h"
 #include "server_tcp.h"
 
 int TCPCommandServerConnection::Init(int connfd) {

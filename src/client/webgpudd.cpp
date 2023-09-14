@@ -4,8 +4,8 @@
 #include <dawn/dawn_proc.h>
 #include <dawn/wire/WireClient.h>
 
-#include "client_tcp.h"
-#include "command_buffer.h"
+#include "../common/client_tcp.h"
+#include "../common/command_buffer.h"
 
 struct webGPUDDRuntime {
     const DawnProcTable *procs;
