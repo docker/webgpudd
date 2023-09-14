@@ -3,13 +3,13 @@ HEADERS := $(shell find . -name '*.h')
 LIB_SRC := command_buffer.cpp client_tcp.cpp webgpudd.cpp
 SRV_SRC :=  command_buffer.cpp client_tcp.cpp server_tcp.cpp server.cpp
 MATMUL_SRC := matmul.cpp
-MATMUL_NATIVE_SRC := matmul-native.cpp
+MATMUL_NATIVE_SRC := matmul.cpp
 SRC := $(shell find . -name '*.cpp')
 OBJS := $(SRC:%.cpp=$(OUT_DIR)/%.o)
 LIB_OBJS := $(LIB_SRC:%.cpp=$(OUT_DIR)/%.o)
 SRV_OBJS := $(SRV_SRC:%.cpp=$(OUT_DIR)/%.o)
-MATMUL_OBJS := $(MATMUL_SRC:%.cpp=$(OUT_DIR)/%.o)
-MATMUL_NATIVE_OBJS := $(MATMUL_NATIVE_SRC:%.cpp=$(OUT_DIR)/%.o)
+MATMUL_OBJS := $(MATMUL_SRC:%.cpp=$(OUT_DIR)/%-webgpudd.o)
+MATMUL_NATIVE_OBJS := $(MATMUL_NATIVE_SRC:%.cpp=$(OUT_DIR)/%-native.o)
 DAWN_BUILD_DIR ?= ../dawn/out/Release
 INCLUDES := -I $(DAWN_BUILD_DIR)/gen/include -I ../dawn/include
 CXXFLAGS = -fPIC -O2 -arch arm64 -std=c++17 -fno-exceptions -fno-rtti
@@ -38,6 +38,12 @@ $(OUT_DIR):
 
 $(OUT_DIR)/%.o: %.cpp $(HEADERS) | $(OUT_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $@ -c $<
+
+$(OUT_DIR)/%-native.o: %.cpp $(HEADERS) | $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -DBACKEND_DAWN_NATIVE -o $@ -c $<
+
+$(OUT_DIR)/%-webgpudd.o: %.cpp $(HEADERS) | $(OUT_DIR)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -DBACKEND_WEBGPUDD -o $@ -c $<
 
 clean:
 	rm -r $(OUT_DIR)
