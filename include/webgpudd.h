@@ -1,8 +1,6 @@
 #ifndef WEBGPUDD_H
 #define WEBGPUDD_H
 
-#include <dawn/webgpu.h>
-
 int initWebGPUDD();
 WGPUInstance getWebGPUDDInstance();
 int finaliseWebGPUDD();

@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <iostream>
@@ -9,6 +10,7 @@
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <netdb.h>
 
 #include "client_tcp.h"
 #include "command_buffer.h"
@@ -23,24 +25,37 @@ TCPCommandTransport::~TCPCommandTransport() noexcept {
 }
 
 int TCPCommandClientConnection::initTCP() {
-    struct sockaddr_in srv_addr, peer_addr;
+    struct addrinfo *srvaddrs, *srvaddr;
     socklen_t peer_addr_size;
-    int connfd;
+    struct addrinfo hints;
+    int connfd, ret;
+    const char *webgpudd_addr = std::getenv("WEBGPUDD_ADDR");
+    const char *webgpudd_port = std::getenv("WEBGPUDD_PORT");
+    if (!webgpudd_addr)
+        webgpudd_addr = "host.docker.internal";
+    if (!webgpudd_port)
+        webgpudd_port = "8080";
 
     connfd = socket(AF_INET, SOCK_STREAM, 0);
     if (connfd < 0) {
         return -errno;
     }
 
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;
+
+    ret = getaddrinfo(webgpudd_addr, webgpudd_port, &hints, &srvaddrs);
+    if (ret < 0) {
+        return ret;
+    }
+
     int yes = 1;
     int result = setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, (char *) &yes, sizeof(int));
 
-    std::memset(&srv_addr, 0, sizeof(srv_addr));
-    srv_addr.sin_family = AF_INET;
-    srv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    srv_addr.sin_port = htons(8080);
-
-    if (connect(connfd, (struct sockaddr *) &srv_addr, sizeof(srv_addr)) < 0) {
+    if (connect(connfd, srvaddrs->ai_addr, srvaddrs->ai_addrlen) < 0) {
         return -errno;
     }
 
