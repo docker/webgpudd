@@ -8,6 +8,9 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#if __linux__
+#include <linux/vm_sockets.h>
+#endif
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <netdb.h>
@@ -80,8 +83,36 @@ int TCPCommandClientConnection::initUnix() {
     return 0;
 }
 
+#if __linux__
+int TCPCommandClientConnection::initVsock() {
+    struct sockaddr_vm addr;
+    int connfd;
+
+    connfd = socket(AF_VSOCK, SOCK_STREAM, 0);
+    if (connfd < 0) {
+        return -errno;
+    }
+
+    std::memset(&addr, 0, sizeof(struct sockaddr_vm));
+    addr.svm_family = AF_VSOCK;
+    addr.svm_port = 9000;
+    addr.svm_cid = VMADDR_CID_HOST;
+
+    if (connect(connfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        return -errno;
+    }
+
+    mConnfd = connfd;
+    return 0;
+}
+#endif
+
 int TCPCommandClientConnection::Init() {
+#if __linux__
+    return initVsock();
+#else
     return initTCP();
+#endif
 }
 
 int TCPCommandTransport::Send(char* buf, size_t sz) {
@@ -165,6 +196,7 @@ int TCPCommandTransport::Recv(RecvBuffer* rbuf) {
 
 flush:
             if (flush_recvd) {
+                // std::cerr << "flush received" << std::endl;
                 rbuf->Flush(); // TODO: handle error
                 flush_recvd = false;
             }

@@ -41,14 +41,17 @@ int main(int argc, char** argv) {
 
     auto wi = std::make_unique<dawn::native::Instance>();
     if (wi == nullptr) {
-        std::cout << "failed to create instance" << std::endl;
+        std::cerr << "failed to create instance" << std::endl;
         return -1;
     }
 
     TCPCommandServer tcs;
-    tcs.Init();
+    int ret = tcs.Init();
+    if (ret) {
+        std::cerr << "failed to initialise command server: " << ret << std::endl;
+        return ret;
+    }
 
-    std::cout << "ready to receive connections" << std::endl;
     auto tcsc = tcs.Accept();
 
     c2sBuf->SetHandler(&ddsrv);

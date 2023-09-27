@@ -1,9 +1,12 @@
+#include <array>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <iostream>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include <webgpu.h>
 
@@ -21,9 +24,8 @@ std::condition_variable cv;
 
 void adapterRequestCb(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * userdata) {
     if (message != nullptr) {
-        std::cout << "adapter request message: " << message << std::endl;
+        std::cerr << "adapter request message: " << message << std::endl;
     }
-    std::cout << "assigining adapter handle" << std::endl;
     {
         std::unique_lock lk(m);
         *((WGPUAdapter*) userdata) = adapter;
@@ -33,9 +35,8 @@ void adapterRequestCb(WGPURequestAdapterStatus status, WGPUAdapter adapter, char
 
 void deviceRequestCb(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * userdata) {
     if (message != nullptr) {
-        std::cout << "device request message: " << message << std::endl;
+        std::cerr << "device request message: " << message << std::endl;
     }
-    std::cout << "assigining device handle" << std::endl;
     {
         std::unique_lock lk(m);
         *((WGPUDevice*) userdata) = device;
@@ -44,7 +45,6 @@ void deviceRequestCb(WGPURequestDeviceStatus status, WGPUDevice device, char con
 }
 
 static void handle_buffer_map(WGPUBufferMapAsyncStatus status, void *userdata) {
-    std::cout << "buffer_map status=" << status << std::endl;
     {
         std::unique_lock lk(m);
         *((bool*)userdata) = true;
@@ -70,24 +70,44 @@ void PrintDeviceError(WGPUErrorType errorType, const char* message, void*) {
         default:
             return;
     }
-    std::cout << errorTypeName << " error: " << message << std::endl;
+    std::cerr << errorTypeName << " error: " << message << std::endl;
 }
 
 void DeviceLogCallback(WGPULoggingType type, const char* message, void*) {
-    std::cout << "Device log: " << message << std::endl;
+    std::cerr << "Device log: " << message << std::endl;
 }
 
-void multiplyMatrices(uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
-    for (int i = 0; i < dim; ++i) {
-        for (int j = 0; j < dim; ++j) {
-            res[j + dim * i] = 0;
-            for (int k = 0; k < dim; ++k)
-                res[j + dim * i] += a[k + dim * i] * b[j + dim * k];
+void multiplyMatricesParallel(uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
+    uint32_t batchsz = 64;
+    std::vector<std::thread*> threads;
+
+    for (int by = 0; by < dim; by += batchsz) {
+        for (int bx = 0; bx < dim; bx += batchsz) {
+            auto t = new std::thread([&, by, bx] {
+                for (int i = by; i < by+batchsz; ++i) {
+                    for (int j = bx; j < bx+batchsz; ++j) {
+                        res[j + dim * i] = 0;
+                        for (int k = 0; k < dim; ++k)
+                            res[j + dim * i] += a[k + dim * i] * b[j + dim * k];
+                    }
+                }
+            });
+            threads.push_back(t);
         }
+    }
+
+    for (auto t : threads) {
+        t->join();
+        delete t;
     }
 }
 
-int multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
+
+void multiplyMatrices(uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
+    multiplyMatricesParallel(a, b, res, dim);
+}
+
+int multiplyMatricesGPU(WGPUInstance instance, WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32_t* b, uint32_t* res, uint32_t dim) {
     uint32_t mlen = dim * dim;
     uint32_t msize = mlen * sizeof(a[0]);
     WGPUShaderModuleDescriptor shdesc = {};
@@ -260,11 +280,11 @@ int multiplyMatricesGPU(WGPUDevice device, WGPUQueue queue, uint32_t* a, uint32_
 
     bool done = false;
     wgpuBufferMapAsync(res_staging, WGPUMapMode_Read, 0, msize, handle_buffer_map, &done);
-#ifdef BACKEND_WEBGPUDD
-    webGPUDDFlush();
-#endif /* BACKEND_WEBGPUDD */
     while (!done) {
-        wgpuDeviceTick(device);
+        wgpuInstanceProcessEvents(instance);
+#ifdef BACKEND_WEBGPUDD
+        webGPUDDFlush();
+#endif /* BACKEND_WEBGPUDD */
         using namespace std::chrono_literals;
         std::unique_lock lk(m);
         cv.wait_for(lk, 1us, [&] { return done; });
@@ -295,13 +315,11 @@ int main(int argc, char** argv) {
 #endif /* BACKEND_DAWN_NATIVE */
 
 #ifdef BACKEND_WEBGPUDD
-    std::cout << "initialising runtime" << std::endl;
     ret = initWebGPUDD();
     if (ret) {
         std::cerr << "Failed to initialise the WebGPU client: " << ret << std::endl;
         return ret;
     }
-    std::cout << "getting instance" << std::endl;
     auto instance = getWebGPUDDInstance();
 #endif /* BACKEND_WEBGPUDD */
 
@@ -312,7 +330,6 @@ int main(int argc, char** argv) {
 
     WGPUAdapter adapter = nullptr;
     wgpuInstanceRequestAdapter(instance, nullptr, adapterRequestCb, &adapter);
-    std::cout << "adapter requested" << std::endl;
 #ifdef BACKEND_WEBGPUDD
     webGPUDDFlush();
 #endif /* BACKEND_WEBGPUDD */
@@ -320,11 +337,9 @@ int main(int argc, char** argv) {
         std::unique_lock lk(m);
         cv.wait(lk, [&] { return adapter != nullptr; });
     }
-    std::cout << "got adapter" << std::endl;
 
     WGPUDevice device = nullptr;
     wgpuAdapterRequestDevice(adapter, nullptr, deviceRequestCb, &device);
-    std::cout << "device requested" << std::endl;
 #ifdef BACKEND_WEBGPUDD
     webGPUDDFlush();
 #endif /* BACKEND_WEBGPUDD */
@@ -332,7 +347,6 @@ int main(int argc, char** argv) {
         std::unique_lock lk(m);
         cv.wait(lk, [&] { return device != nullptr; });
     }
-    std::cout << "got device" << std::endl;
 
     wgpuDeviceSetUncapturedErrorCallback(device, PrintDeviceError, nullptr);
     wgpuDeviceSetLoggingCallback(device, DeviceLogCallback, nullptr);
@@ -344,16 +358,16 @@ int main(int argc, char** argv) {
 
     constexpr uint32_t dimension = 768;
     constexpr uint32_t size = dimension * dimension;
-    std::array<uint32_t, size> res = {0};
-    std::array<uint32_t, size> ma = {0};
-    std::array<uint32_t, size> mb = {0};
+    std::array<uint32_t, size> res;
+    std::array<uint32_t, size> ma;
+    std::array<uint32_t, size> mb;
 
     for (int i = 0; i < ma.size(); ++i)
         ma[i] = 2;
     for (int i = 0; i < mb.size(); ++i)
         mb[i] = 3;
 
-    ret = multiplyMatricesGPU(device, queue, &ma[0], &mb[0], &res[0], dimension);
+    ret = multiplyMatricesGPU(instance, device, queue, &ma[0], &mb[0], &res[0], dimension);
     if (ret) {
         std::cerr << "GPU computation failed" << std::endl;
         return ret;

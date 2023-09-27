@@ -78,18 +78,68 @@ int TCPCommandServer::initUnix() {
     return 0;
 }
 
+int TCPCommandServer::initDDFd() {
+    struct sockaddr_un srv_addr;
+    int listenfd;
+
+    remove("/tmp/dd-dawn.sock");
+
+    listenfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (listenfd < 0) {
+        return -errno;
+    }
+
+    memset(&srv_addr, 0, sizeof(srv_addr));
+    srv_addr.sun_family = AF_UNIX;
+    strncpy(srv_addr.sun_path, "/tmp/dd-dawn.sock", sizeof(srv_addr.sun_path) - 1);
+
+    if (bind(listenfd, (struct sockaddr *) &srv_addr, sizeof(srv_addr)) < 0) {
+        return -errno;
+    }
+
+    if (listen(listenfd, 1) < 0) {
+        return -errno;
+    }
+
+    mListenfd = listenfd;
+    return 0;
+}
+
 int TCPCommandServer::Init() {
-    return initTCP();
+    //return initTCP();
+    return initDDFd();
 }
 
 TCPCommandServerConnection* TCPCommandServer::Accept() {
+    //struct sockaddr_in peer_addr;
+    //socklen_t peer_addr_size = sizeof(peer_addr);
+    //auto connfd = accept(mListenfd, (struct sockaddr *) &peer_addr, &peer_addr_size);
+    //if (connfd < 0) {
+    //    return nullptr;
+    //}
+    //auto tcsc = new TCPCommandServerConnection();
+    //tcsc->Init(connfd);
+    //return tcsc;
+    return acceptFD();
+}
+
+TCPCommandServerConnection* TCPCommandServer::acceptFD() {
     struct sockaddr_in peer_addr;
     socklen_t peer_addr_size = sizeof(peer_addr);
     auto connfd = accept(mListenfd, (struct sockaddr *) &peer_addr, &peer_addr_size);
     if (connfd < 0) {
         return nullptr;
     }
+    char buf[512];
+    struct iovec e = {buf, 512};
+    char cmsg[CMSG_SPACE(sizeof(int))];
+    struct msghdr m = {NULL, 0, &e, 1, cmsg, sizeof(cmsg), 0};
+    int n = recvmsg(connfd, &m, 0);
+    struct cmsghdr *c = CMSG_FIRSTHDR(&m);
+    int cfd = *(int *)CMSG_DATA(c);
+    char ack = 0xFD;
+    send(connfd, &ack, 1, 0);
     auto tcsc = new TCPCommandServerConnection();
-    tcsc->Init(connfd);
+    tcsc->Init(cfd);
     return tcsc;
 }

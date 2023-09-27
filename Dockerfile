@@ -2,7 +2,7 @@
 
 FROM ubuntu:22.04 as builder
 
-RUN apt-get update && apt-get install -y git build-essential cmake python3 curl
+RUN apt-get update && apt-get install -y git build-essential cmake python3 curl vim
 
 WORKDIR /build
 RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git depot_tools

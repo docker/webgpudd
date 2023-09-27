@@ -18,6 +18,9 @@ class TCPCommandClientConnection : public TCPCommandTransport {
   public:
     int initTCP();
     int initUnix();
+#if __linux__
+    int initVsock();
+#endif
     int Init();
 };
 

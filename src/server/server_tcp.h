@@ -15,8 +15,10 @@ class TCPCommandServer {
 
     int initTCP();
     int initUnix();
+    int initDDFd();
     int Init();
     TCPCommandServerConnection* Accept();
+    TCPCommandServerConnection* acceptFD();
 
   private:
     int mListenfd = -1;
