@@ -9,7 +9,7 @@ Desktop with WebGPU integration enabled.
 
 To build the matrix multiplication example simply run:
 
-    g++ --std=c++17 -O2 -D BACKEND_WEBGPUDD matmul.cpp -o matmul -lwebgpudd
+    g++ --std=c++17 -O2 -D BACKEND_GPU -D BACKEND_WEBGPUDD matmul.cpp -o matmul -lwebgpudd
 
 and to run it:
 

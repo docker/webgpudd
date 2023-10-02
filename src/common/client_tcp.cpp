@@ -22,6 +22,7 @@ TCPCommandTransport::TCPCommandTransport() noexcept {}
 
 TCPCommandTransport::~TCPCommandTransport() noexcept {
     if (mConnfd >= 0) {
+        shutdown(mConnfd, SHUT_RDWR);
         close(mConnfd);
         mConnfd = -1;
     }

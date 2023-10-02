@@ -55,6 +55,7 @@ WGPUInstance getWebGPUDDInstance() {
 }
 
 int finaliseWebGPUDD() {
+    runtime.cmdt.~TCPCommandTransport();
     runtime.recvt->join();
     return 0;
 }
