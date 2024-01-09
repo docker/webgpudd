@@ -1,6 +1,8 @@
 .PHONY: default with-gpu
 
-default:
+default: with-gpu
+
+no-gpu:
 	g++ --std=c++17 -O2 matmul.cpp -o matmul
 
 with-gpu:

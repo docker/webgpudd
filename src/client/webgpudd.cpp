@@ -20,6 +20,10 @@ struct webGPUDDRuntime {
 
 static webGPUDDRuntime runtime;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int initWebGPUDD() {
     runtime.procs = &dawn::wire::client::GetProcs();
     runtime.c2sBuf = new SendBuffer();
@@ -63,3 +67,7 @@ int finaliseWebGPUDD() {
 int webGPUDDFlush() {
     return runtime.c2sBuf->Flush();
 }
+
+#ifdef __cplusplus
+}
+#endif
