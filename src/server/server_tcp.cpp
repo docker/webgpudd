@@ -106,21 +106,21 @@ int TCPCommandServer::initDDFd() {
 }
 
 int TCPCommandServer::Init() {
-    //return initTCP();
-    return initDDFd();
+    return initTCP();
+    //return initDDFd();
 }
 
 TCPCommandServerConnection* TCPCommandServer::Accept() {
-    //struct sockaddr_in peer_addr;
-    //socklen_t peer_addr_size = sizeof(peer_addr);
-    //auto connfd = accept(mListenfd, (struct sockaddr *) &peer_addr, &peer_addr_size);
-    //if (connfd < 0) {
-    //    return nullptr;
-    //}
-    //auto tcsc = new TCPCommandServerConnection();
-    //tcsc->Init(connfd);
-    //return tcsc;
-    return acceptFD();
+    struct sockaddr_in peer_addr;
+    socklen_t peer_addr_size = sizeof(peer_addr);
+    auto connfd = accept(mListenfd, (struct sockaddr *) &peer_addr, &peer_addr_size);
+    if (connfd < 0) {
+        return nullptr;
+    }
+    auto tcsc = new TCPCommandServerConnection();
+    tcsc->Init(connfd);
+    return tcsc;
+    //return acceptFD();
 }
 
 TCPCommandServerConnection* TCPCommandServer::acceptFD() {
@@ -134,7 +134,8 @@ TCPCommandServerConnection* TCPCommandServer::acceptFD() {
     struct iovec e = {buf, 512};
     char cmsg[CMSG_SPACE(sizeof(int))];
     struct msghdr m = {NULL, 0, &e, 1, cmsg, sizeof(cmsg), 0};
-    int n = recvmsg(connfd, &m, 0);
+    //int n = recvmsg(connfd, &m, 0);
+    recvmsg(connfd, &m, 0);
     struct cmsghdr *c = CMSG_FIRSTHDR(&m);
     int cfd = *(int *)CMSG_DATA(c);
     char ack = 0xFD;

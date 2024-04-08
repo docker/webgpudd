@@ -24,6 +24,7 @@ static webGPUDDRuntime runtime;
 extern "C" {
 #endif
 
+// wgpuCreateInstance
 int initWebGPUDD() {
     runtime.procs = &dawn::wire::client::GetProcs();
     runtime.c2sBuf = new SendBuffer();
@@ -50,6 +51,7 @@ int initWebGPUDD() {
     return 0;
 }
 
+// wgpuCreateInstance
 WGPUInstance getWebGPUDDInstance() {
     if (!runtime.instanceReserved) {
         runtime.ri = runtime.wireClient->ReserveInstance();
@@ -58,12 +60,14 @@ WGPUInstance getWebGPUDDInstance() {
     return runtime.ri.instance;
 }
 
+// wgpuInstanceRelease
 int finaliseWebGPUDD() {
     runtime.cmdt.~TCPCommandTransport();
     runtime.recvt->join();
     return 0;
 }
 
+// TODO: need to figure out where to hide flush, or if it could be avoided altogether
 int webGPUDDFlush() {
     return runtime.c2sBuf->Flush();
 }

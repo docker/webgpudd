@@ -1,6 +1,8 @@
 #ifndef WEBGPUDD_H
 #define WEBGPUDD_H
 
+#include "webgpu.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

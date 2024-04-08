@@ -12,7 +12,6 @@ size_t SendBuffer::GetMaximumAllocationSize() const {
 }
 
 void* SendBuffer::GetCmdSpace(size_t size) {
-    // std::cout << "allocating " << size << " bytes for an outgoing command" << std::endl;
     if (size > mBuffer.size()) {
         return nullptr;
     }
@@ -32,6 +31,8 @@ void* SendBuffer::GetCmdSpace(size_t size) {
 }
 
 bool SendBuffer::Flush() {
+    if (mOffset <= 0)
+        return true;
     command_tlv* cmd = (command_tlv *) &mBuffer[mOffset];
     cmd->type = 2;
     cmd->len = 0;
