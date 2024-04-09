@@ -55,6 +55,7 @@ int initWebGPUDD() {
 WGPUInstance getWebGPUDDInstance() {
     if (!runtime.instanceReserved) {
         runtime.ri = runtime.wireClient->ReserveInstance();
+        // FIXME: need to send id and generation to server
         runtime.instanceReserved = true;
     }
     return runtime.ri.instance;
@@ -62,7 +63,7 @@ WGPUInstance getWebGPUDDInstance() {
 
 // wgpuInstanceRelease
 int finaliseWebGPUDD() {
-    runtime.cmdt.~TCPCommandTransport();
+    runtime.cmdt.TCPCommandClientConnection::~TCPCommandClientConnection();
     runtime.recvt->join();
     return 0;
 }

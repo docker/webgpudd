@@ -57,7 +57,12 @@ int main(int argc, char** argv) {
     c2sBuf->SetHandler(&ddsrv);
     s2cBuf->SetTransport(tcsc);
 
-    wireServer->InjectInstance(wi->Get(), 1, 0);
+    // TODO: need to get id and generation from the client
+    const dawn::wire::Handle hnd = {
+        .id = 1,
+        .generation = 0,
+    };
+    wireServer->InjectInstance(wi->Get(), hnd);
 
     std::thread recvt([&] {
         tcsc->Recv(c2sBuf);

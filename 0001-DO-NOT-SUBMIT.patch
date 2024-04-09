@@ -1,0 +1,92 @@
+From 30241617724ce4b55850895a13b8136e1037bbee Mon Sep 17 00:00:00 2001
+From: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
+Date: Fri, 19 Jan 2024 11:45:10 +0100
+Subject: [PATCH] DO NOT SUBMIT
+
+Signed-off-by: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
+---
+ src/dawn/native/BindGroup.cpp      |  6 +++---
+ src/dawn/native/BindingInfo.cpp    | 14 +++++++-------
+ src/dawn/native/Limits.cpp         |  2 +-
+ src/dawn/native/metal/BufferMTL.mm |  9 +++++----
+ 4 files changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/dawn/native/BindGroup.cpp b/src/dawn/native/BindGroup.cpp
+index 65ff312121..81f4de3814 100644
+--- a/src/dawn/native/BindGroup.cpp
++++ b/src/dawn/native/BindGroup.cpp
+@@ -123,9 +123,9 @@ MaybeError ValidateBufferBinding(const DeviceBase* device,
+                     "Binding size (%u) of %s is smaller than the minimum binding size (%u).",
+                     bindingSize, entry.buffer, layout.minBindingSize);
+ 
+-    DAWN_INVALID_IF(bindingSize > maxBindingSize,
+-                    "Binding size (%u) of %s is larger than the maximum binding size (%u).",
+-                    bindingSize, entry.buffer, maxBindingSize);
++    //DAWN_INVALID_IF(bindingSize > maxBindingSize,
++    //                "Binding size (%u) of %s is larger than the maximum binding size (%u).",
++    //                bindingSize, entry.buffer, maxBindingSize);
+ 
+     return {};
+ }
+diff --git a/src/dawn/native/BindingInfo.cpp b/src/dawn/native/BindingInfo.cpp
+index b7714e0008..6e60a39423 100644
+--- a/src/dawn/native/BindingInfo.cpp
++++ b/src/dawn/native/BindingInfo.cpp
+@@ -188,13 +188,13 @@ MaybeError ValidateBindingCounts(const CombinedLimits& limits, const BindingCoun
+             bindingCounts.perStage[stage].externalTextureCount, stage,
+             limits.v1.maxSamplersPerShaderStage);
+ 
+-        DAWN_INVALID_IF(
+-            bindingCounts.perStage[stage].storageBufferCount >
+-                limits.v1.maxStorageBuffersPerShaderStage,
+-            "The number of storage buffers (%u) in the %s stage exceeds the maximum per-stage "
+-            "limit (%u).",
+-            bindingCounts.perStage[stage].storageBufferCount, stage,
+-            limits.v1.maxStorageBuffersPerShaderStage);
++        //DAWN_INVALID_IF(
++        //    bindingCounts.perStage[stage].storageBufferCount >
++        //        limits.v1.maxStorageBuffersPerShaderStage,
++        //    "The number of storage buffers (%u) in the %s stage exceeds the maximum per-stage "
++        //    "limit (%u).",
++        //    bindingCounts.perStage[stage].storageBufferCount, stage,
++        //    limits.v1.maxStorageBuffersPerShaderStage);
+ 
+         DAWN_INVALID_IF(
+             bindingCounts.perStage[stage].storageTextureCount >
+diff --git a/src/dawn/native/Limits.cpp b/src/dawn/native/Limits.cpp
+index 509e2099da..140bcfbcc5 100644
+--- a/src/dawn/native/Limits.cpp
++++ b/src/dawn/native/Limits.cpp
+@@ -60,7 +60,7 @@
+ // Tiers are 256MB, 1GB, 2GB, 4GB.
+ //                            compat      tier0       tier1
+ #define LIMITS_MAX_BUFFER_SIZE(X)                                                         \
+-    X(Maximum, maxBufferSize, 0x10000000, 0x10000000, 0x40000000, 0x80000000, 0x100000000)
++    X(Maximum, maxBufferSize, 0x40000000, 0x40000000, 0x40000000, 0x80000000, 0x100000000)
+ 
+ // Tiers for limits related to resource bindings.
+ // TODO(crbug.com/dawn/685): Define these better. For now, use two tiers where one
+diff --git a/src/dawn/native/metal/BufferMTL.mm b/src/dawn/native/metal/BufferMTL.mm
+index 2403e905c2..0f3952c5d9 100644
+--- a/src/dawn/native/metal/BufferMTL.mm
++++ b/src/dawn/native/metal/BufferMTL.mm
+@@ -59,11 +59,12 @@
+ 
+ // static
+ uint64_t Buffer::QueryMaxBufferLength(id<MTLDevice> mtlDevice) {
+-    if (@available(iOS 12, tvOS 12, macOS 10.14, *)) {
+-        return [mtlDevice maxBufferLength];
+-    }
++    //if (@available(iOS 12, tvOS 12, macOS 10.14, *)) {
++    //    return [mtlDevice maxBufferLength];
++    //}
++    return 512 * 1024 * 1024;
+     // 256Mb limit in versions without based on the data in the feature set tables.
+-    return 256 * 1024 * 1024;
++    // return 256 * 1024 * 1024;
+ }
+ 
+ Buffer::Buffer(DeviceBase* dev, const UnpackedPtr<BufferDescriptor>& desc)
+-- 
+2.39.3 (Apple Git-146)
+
