@@ -1,14 +1,27 @@
 #include <mutex>
 #include <thread>
 
-#include <dawn/dawn_proc.h>
+#include <dawn/dawn_proc_table.h>
 #include <dawn/wire/WireClient.h>
 
 #include "../common/client_tcp.h"
 #include "../common/command_buffer.h"
 
+void webGPUDDSetProcs(const DawnProcTable*);
+
+void webgpuDDInstanceReference(WGPUInstance instance);
+void webGPUDDInstanceRelease(WGPUInstance instance);
+
+void webGPUDDInstanceProcessEvents(WGPUInstance instance);
+void webGPUDDInstanceRequestAdapter(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallback callback, void * userdata);
+WGPUFuture webGPUDDInstanceRequestAdapterF(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallbackInfo callbackInfo);
+void webGPUDDAdapterRequestDevice(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallback callback, void * userdata);
+WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallbackInfo callbackInfo);
+
+DawnProcTable webGPUDD_procs;
+
 struct webGPUDDRuntime {
-    const DawnProcTable *procs;
+    const DawnProcTable* wire_procs;
     dawn::wire::WireClient* wireClient;
     std::unique_ptr<std::thread> recvt;
     SendBuffer* c2sBuf;
@@ -20,13 +33,10 @@ struct webGPUDDRuntime {
 
 static webGPUDDRuntime runtime;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // wgpuCreateInstance
 int initWebGPUDD() {
-    runtime.procs = &dawn::wire::client::GetProcs();
+    runtime.wire_procs = &dawn::wire::client::GetProcs();
+    webGPUDD_procs = dawn::wire::client::GetProcs();
     runtime.c2sBuf = new SendBuffer();
     runtime.s2cBuf = new RecvBuffer();
 
@@ -43,7 +53,16 @@ int initWebGPUDD() {
     runtime.s2cBuf->SetHandler(runtime.wireClient);
     runtime.c2sBuf->SetTransport(&runtime.cmdt);
 
-    dawnProcSetProcs(runtime.procs);
+    webGPUDD_procs.instanceReference = webgpuDDInstanceReference;
+    webGPUDD_procs.instanceRelease = webGPUDDInstanceRelease;
+
+    webGPUDD_procs.instanceProcessEvents = webGPUDDInstanceProcessEvents;
+    webGPUDD_procs.instanceRequestAdapter = webGPUDDInstanceRequestAdapter;
+    webGPUDD_procs.instanceRequestAdapterF = webGPUDDInstanceRequestAdapterF;
+    webGPUDD_procs.adapterRequestDevice = webGPUDDAdapterRequestDevice;
+    webGPUDD_procs.adapterRequestDeviceF = webGPUDDAdapterRequestDeviceF;
+
+    webGPUDDSetProcs(&webGPUDD_procs);
 
     runtime.recvt.reset(new std::thread([&] {
         runtime.cmdt.Recv(runtime.s2cBuf);
@@ -73,6 +92,52 @@ int webGPUDDFlush() {
     return runtime.c2sBuf->Flush();
 }
 
-#ifdef __cplusplus
+WGPUInstance webGPUDDCreateInstance(const WGPUInstanceDescriptor* desc) {
+    int ret = initWebGPUDD();
+    if (ret)
+        return nullptr;
+    return getWebGPUDDInstance();
 }
-#endif
+
+void webgpuDDInstanceReference(WGPUInstance instance) {
+    // TODO: bump internal refcount
+    // call wire
+    runtime.wire_procs->instanceReference(instance);
+}
+
+void webGPUDDInstanceRelease(WGPUInstance instance) {
+    // TODO: maintain refcount and delete if needed
+    // call wire
+    finaliseWebGPUDD();
+    runtime.wire_procs->instanceRelease(instance);
+}
+
+// TODO: request and process events should flush?
+// * wgpuInstanceWaitAny?
+
+void webGPUDDInstanceProcessEvents(WGPUInstance instance) {
+    runtime.wire_procs->instanceProcessEvents(instance);
+    webGPUDDFlush();
+}
+
+void webGPUDDInstanceRequestAdapter(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallback callback, void * userdata) {
+    runtime.wire_procs->instanceRequestAdapter(instance, options, callback, userdata);
+    webGPUDDFlush();
+}
+
+WGPUFuture webGPUDDInstanceRequestAdapterF(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallbackInfo callbackInfo) {
+    auto future = runtime.wire_procs->instanceRequestAdapterF(instance, options, callbackInfo);
+    webGPUDDFlush();
+    return future;
+}
+
+void webGPUDDAdapterRequestDevice(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallback callback, void * userdata) {
+    runtime.wire_procs->adapterRequestDevice(adapter, descriptor, callback, userdata);
+    webGPUDDFlush();
+}
+
+WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallbackInfo callbackInfo) {
+    auto future = runtime.wire_procs->adapterRequestDeviceF(adapter, descriptor, callbackInfo);
+    webGPUDDFlush();
+    return future;
+}

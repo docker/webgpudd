@@ -176,9 +176,6 @@ int multiplyMatricesGPU(WGPUInstance instance, WGPUDevice device, WGPUQueue queu
     wgpuBufferMapAsync(res_staging, WGPUMapMode_Read, 0, msize, handle_buffer_map, &done);
     while (!done) {
         wgpuInstanceProcessEvents(instance);
-#ifdef BACKEND_WEBGPUDD
-        webGPUDDFlush();
-#endif /* BACKEND_WEBGPUDD */
         using namespace std::chrono_literals;
         std::unique_lock lk(m);
         cv.wait_for(lk, 1us, [&] { return done; });

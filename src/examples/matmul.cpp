@@ -132,9 +132,7 @@ int main(int argc, char** argv) {
             }
         }
 
-#ifdef BACKEND_WEBGPUDD
-        finaliseWebGPUDD();
-#endif /* BACKEND_WEBGPUDD */
+        wgpuInstanceRelease(ctx.instance);
     }
 #endif /* BACKEND_GPU */
 

@@ -63,30 +63,15 @@ WGPUInstance getWGPUInstance() {
 #ifdef BACKEND_DAWN_NATIVE
     DawnProcTable procs = dawn::native::GetProcs();
     dawnProcSetProcs(&procs);
-    WGPUInstanceDescriptor instanceDesc = {0};
-    auto instance = wgpuCreateInstance(&instanceDesc);
 #endif /* BACKEND_DAWN_NATIVE */
 
-#ifdef BACKEND_WEBGPUDD
-    int ret;
-    ret = initWebGPUDD();
-    if (ret) {
-        std::cerr << "Failed to initialise the WebGPU client: " << ret << std::endl;
-        errno = -ret;
-        return nullptr;
-    }
-    auto instance = getWebGPUDDInstance();
-#endif /* BACKEND_WEBGPUDD */
-
-    return instance;
+    WGPUInstanceDescriptor instanceDesc = {0};
+    return wgpuCreateInstance(&instanceDesc);
 }
 
 WGPUAdapter getWGPUAdapter(WGPUInstance instance) {
     WGPUAdapter adapter = nullptr;
     wgpuInstanceRequestAdapter(instance, nullptr, adapterRequestCb, &adapter);
-#ifdef BACKEND_WEBGPUDD
-    webGPUDDFlush();
-#endif /* BACKEND_WEBGPUDD */
     {
         std::unique_lock lk(m);
         cv.wait(lk, [&] { return adapter != nullptr; });
@@ -97,9 +82,6 @@ WGPUAdapter getWGPUAdapter(WGPUInstance instance) {
 WGPUDevice getWGPUDevice(WGPUAdapter adapter) {
     WGPUDevice device = nullptr;
     wgpuAdapterRequestDevice(adapter, nullptr, deviceRequestCb, &device);
-#ifdef BACKEND_WEBGPUDD
-    webGPUDDFlush();
-#endif /* BACKEND_WEBGPUDD */
     {
         std::unique_lock lk(m);
         cv.wait(lk, [&] { return device != nullptr; });
