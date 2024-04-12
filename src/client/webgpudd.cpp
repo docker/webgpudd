@@ -1,5 +1,8 @@
 #include <mutex>
 #include <thread>
+#include <iostream>
+#include <map>
+#include <functional>
 
 #include <dawn/dawn_proc_table.h>
 #include <dawn/wire/WireClient.h>
@@ -18,6 +21,11 @@ WGPUFuture webGPUDDInstanceRequestAdapterF(WGPUInstance instance, WGPURequestAda
 void webGPUDDAdapterRequestDevice(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallback callback, void * userdata);
 WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallbackInfo callbackInfo);
 
+WGPUAdapter webGPUDDDeviceGetAdapter(WGPUDevice device);
+WGPUInstance webGPUDDAdapterGetInstance(WGPUAdapter adapter);
+
+std::map<WGPUAdapter, WGPUInstance> adapterToInstance;
+std::map<WGPUDevice, WGPUAdapter> deviceToAdapter;
 DawnProcTable webGPUDD_procs;
 
 struct webGPUDDRuntime {
@@ -33,7 +41,6 @@ struct webGPUDDRuntime {
 
 static webGPUDDRuntime runtime;
 
-// wgpuCreateInstance
 int initWebGPUDD() {
     runtime.wire_procs = &dawn::wire::client::GetProcs();
     webGPUDD_procs = dawn::wire::client::GetProcs();
@@ -62,6 +69,9 @@ int initWebGPUDD() {
     webGPUDD_procs.adapterRequestDevice = webGPUDDAdapterRequestDevice;
     webGPUDD_procs.adapterRequestDeviceF = webGPUDDAdapterRequestDeviceF;
 
+    webGPUDD_procs.deviceGetAdapter = webGPUDDDeviceGetAdapter;
+    webGPUDD_procs.adapterGetInstance = webGPUDDAdapterGetInstance;
+
     webGPUDDSetProcs(&webGPUDD_procs);
 
     runtime.recvt.reset(new std::thread([&] {
@@ -70,7 +80,6 @@ int initWebGPUDD() {
     return 0;
 }
 
-// wgpuCreateInstance
 WGPUInstance getWebGPUDDInstance() {
     if (!runtime.instanceReserved) {
         runtime.ri = runtime.wireClient->ReserveInstance();
@@ -80,7 +89,6 @@ WGPUInstance getWebGPUDDInstance() {
     return runtime.ri.instance;
 }
 
-// wgpuInstanceRelease
 int finaliseWebGPUDD() {
     runtime.cmdt.TCPCommandClientConnection::~TCPCommandClientConnection();
     runtime.recvt->join();
@@ -92,6 +100,14 @@ int webGPUDDFlush() {
     return runtime.c2sBuf->Flush();
 }
 
+WGPUAdapter webGPUDDDeviceGetAdapter(WGPUDevice device) {
+    return deviceToAdapter[device];
+}
+
+WGPUInstance webGPUDDAdapterGetInstance(WGPUAdapter adapter) {
+    return adapterToInstance[adapter];
+}
+
 WGPUInstance webGPUDDCreateInstance(const WGPUInstanceDescriptor* desc) {
     int ret = initWebGPUDD();
     if (ret)
@@ -101,13 +117,11 @@ WGPUInstance webGPUDDCreateInstance(const WGPUInstanceDescriptor* desc) {
 
 void webgpuDDInstanceReference(WGPUInstance instance) {
     // TODO: bump internal refcount
-    // call wire
     runtime.wire_procs->instanceReference(instance);
 }
 
 void webGPUDDInstanceRelease(WGPUInstance instance) {
     // TODO: maintain refcount and delete if needed
-    // call wire
     finaliseWebGPUDD();
     runtime.wire_procs->instanceRelease(instance);
 }
@@ -120,8 +134,27 @@ void webGPUDDInstanceProcessEvents(WGPUInstance instance) {
     webGPUDDFlush();
 }
 
+struct adapterRequestState {
+    WGPUInstance instance;
+    WGPURequestAdapterCallback callback;
+    void * userdata;
+};
+
+void adapterRequestCB(WGPURequestAdapterStatus status, WGPUAdapter adapter, char const * message, void * userdata) {
+    struct adapterRequestState * state = (struct adapterRequestState *) userdata;
+    if (adapter != nullptr) {
+        adapterToInstance[adapter] = state->instance;
+    }
+    state->callback(status, adapter, message, state->userdata);
+    delete state;
+}
+
 void webGPUDDInstanceRequestAdapter(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallback callback, void * userdata) {
-    runtime.wire_procs->instanceRequestAdapter(instance, options, callback, userdata);
+    struct adapterRequestState * state = new adapterRequestState;
+    state->instance = instance;
+    state->callback = callback;
+    state->userdata = userdata;
+    runtime.wire_procs->instanceRequestAdapter(instance, options, adapterRequestCB, state);
     webGPUDDFlush();
 }
 
@@ -131,8 +164,27 @@ WGPUFuture webGPUDDInstanceRequestAdapterF(WGPUInstance instance, WGPURequestAda
     return future;
 }
 
+struct deviceRequestState {
+    WGPUAdapter adapter;
+    WGPURequestDeviceCallback callback;
+    void * userdata;
+};
+
+void deviceRequestCB(WGPURequestDeviceStatus status, WGPUDevice device, char const * message, void * userdata) {
+    struct deviceRequestState * state = (struct deviceRequestState *) userdata;
+    if (device != nullptr) {
+        deviceToAdapter[device] = state->adapter;
+    }
+    state->callback(status, device, message, state->userdata);
+    delete state;
+}
+
 void webGPUDDAdapterRequestDevice(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallback callback, void * userdata) {
-    runtime.wire_procs->adapterRequestDevice(adapter, descriptor, callback, userdata);
+    struct deviceRequestState * state = new deviceRequestState;
+    state->adapter = adapter;
+    state->callback = callback;
+    state->userdata = userdata;
+    runtime.wire_procs->adapterRequestDevice(adapter, descriptor, deviceRequestCB, state);
     webGPUDDFlush();
 }
 
