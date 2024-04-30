@@ -30,7 +30,7 @@ class SendBuffer final : public dawn::wire::CommandSerializer {
   private:
     CommandTransport* mTransport = nullptr;
     size_t mOffset = 0;
-    std::array<char, 1000000> mBuffer;
+    std::array<char, 2000000> mBuffer;
 };
 
 class RecvBuffer final : public dawn::wire::CommandSerializer {
@@ -48,7 +48,7 @@ class RecvBuffer final : public dawn::wire::CommandSerializer {
   private:
     dawn::wire::CommandHandler* mHandler = nullptr;
     size_t mOffset = 0;
-    std::array<char, 1000000> mBuffer;
+    std::array<char, 2000000> mBuffer;
 };
 
 #endif  // COMMAND_BUFFER_H

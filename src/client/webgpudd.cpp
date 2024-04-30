@@ -24,6 +24,8 @@ WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter, WGPUDeviceDescript
 WGPUAdapter webGPUDDDeviceGetAdapter(WGPUDevice device);
 WGPUInstance webGPUDDAdapterGetInstance(WGPUAdapter adapter);
 
+void webGPUDDQueueWriteBuffer(WGPUQueue queue, WGPUBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+
 std::map<WGPUAdapter, WGPUInstance> adapterToInstance;
 std::map<WGPUDevice, WGPUAdapter> deviceToAdapter;
 DawnProcTable webGPUDD_procs;
@@ -71,6 +73,8 @@ int initWebGPUDD() {
 
     webGPUDD_procs.deviceGetAdapter = webGPUDDDeviceGetAdapter;
     webGPUDD_procs.adapterGetInstance = webGPUDDAdapterGetInstance;
+
+    webGPUDD_procs.queueWriteBuffer = webGPUDDQueueWriteBuffer;
 
     webGPUDDSetProcs(&webGPUDD_procs);
 
@@ -192,4 +196,9 @@ WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter, WGPUDeviceDescript
     auto future = runtime.wire_procs->adapterRequestDeviceF(adapter, descriptor, callbackInfo);
     webGPUDDFlush();
     return future;
+}
+
+void webGPUDDQueueWriteBuffer(WGPUQueue queue, WGPUBuffer buffer, uint64_t bufferOffset, void const * data, size_t size) {
+    runtime.wire_procs->queueWriteBuffer(queue, buffer, bufferOffset, data, size);
+    webGPUDDFlush();
 }

@@ -8,31 +8,34 @@ SendBuffer::SendBuffer() noexcept {}
 SendBuffer::~SendBuffer() noexcept {}
 
 size_t SendBuffer::GetMaximumAllocationSize() const {
-    return mBuffer.size() - sizeof(command_tlv);
+    return mBuffer.size() - 2 * sizeof(command_tlv);
 }
 
 void* SendBuffer::GetCmdSpace(size_t size) {
-    if (size > mBuffer.size()) {
+    if (size + 2 * sizeof(command_tlv) > mBuffer.size()) {
         return nullptr;
     }
-    command_tlv* cmd = (command_tlv *) &mBuffer[mOffset];
-    cmd->type = 1;
-    cmd->len = size;
-    char* result = (char *) cmd + sizeof(command_tlv);
-    if (mBuffer.size() - size - sizeof(command_tlv) < mOffset) {
+
+    if (mBuffer.size() - size - 2 * sizeof(command_tlv) < mOffset) {
         if (!Flush()) {
             return nullptr;
         }
         return GetCmdSpace(size);
     }
 
+    command_tlv* cmd = (command_tlv *) &mBuffer[mOffset];
+    cmd->type = 1;
+    cmd->len = size;
+    char* result = (char *) cmd + sizeof(command_tlv);
+
     mOffset += size + sizeof(command_tlv);
     return result;
 }
 
 bool SendBuffer::Flush() {
-    if (mOffset <= 0)
+    if (mOffset <= 0) {
         return true;
+    }
     command_tlv* cmd = (command_tlv *) &mBuffer[mOffset];
     cmd->type = 2;
     cmd->len = 0;
@@ -50,7 +53,7 @@ RecvBuffer::RecvBuffer() noexcept {}
 RecvBuffer::~RecvBuffer() noexcept {}
 
 size_t RecvBuffer::GetMaximumAllocationSize() const {
-    return mBuffer.size() - sizeof(command_tlv);
+    return mBuffer.size() - 2 * sizeof(command_tlv);
 }
 
 void* RecvBuffer::GetCmdSpace(size_t size) {

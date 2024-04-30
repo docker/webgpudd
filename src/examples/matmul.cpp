@@ -16,10 +16,6 @@
 #include <dawn/native/DawnNative.h>
 #endif /* BACKEND_DAWN_NATIVE */
 
-#ifdef BACKEND_WEBGPUDD
-#include <webgpudd.h>
-#endif /* BACKEND_WEBGPUDD */
-
 #include "matmul_gpu.hpp"
 #endif /* BACKEND_GPU */
 
