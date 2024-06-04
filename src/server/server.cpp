@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -26,7 +27,28 @@ class DDWGPUServer : public dawn::wire::CommandHandler {
     SendBuffer* mBuf;
 };
 
+// args for:
+// * control socket path
+// * fd passing version
+// * tcp version
+// * vsock version
+// * buffer size (?)
+//
+// webgpudd serve-fd <control socket path>
+// webgpudd serve-tcp <port name>
+// webgpudd serve-vsock <vsock number>
 int main(int argc, char** argv) {
+    if (argc < 3) {
+        // TODO: print help
+        return 1;
+    }
+
+    if (std::strncmp(argv[1], "handle-fd", 9) != 0) {
+        // TODO: print help
+        return 1;
+    }
+    std::string ctlSocket(argv[2]);
+
     DawnProcTable backendProcs = dawn::native::GetProcs();
 
     auto c2sBuf = new RecvBuffer();
@@ -46,7 +68,7 @@ int main(int argc, char** argv) {
     }
 
     TCPCommandServer tcs;
-    int ret = tcs.Init();
+    int ret = tcs.Init(ctlSocket);
     if (ret) {
         std::cerr << "failed to initialise command server: " << ret << std::endl;
         return ret;

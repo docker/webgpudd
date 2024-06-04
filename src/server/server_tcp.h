@@ -15,8 +15,8 @@ class TCPCommandServer {
 
     int initTCP();
     int initUnix();
-    int initDDFd();
-    int Init();
+    int initDDFd(std::string& ctlSocket);
+    int Init(std::string& ctlSocket);
     TCPCommandServerConnection* Accept();
     TCPCommandServerConnection* acceptFD();
 

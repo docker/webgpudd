@@ -54,6 +54,9 @@ int initWebGPUDD() {
 
     runtime.wireClient = new dawn::wire::WireClient(clientDesc);
 
+    // TODO:
+    // * init TCP
+    // * init unix socket
     int err = runtime.cmdt.Init();
     if (err < 0) {
         return err;
@@ -78,9 +81,12 @@ int initWebGPUDD() {
 
     webGPUDDSetProcs(&webGPUDD_procs);
 
-    runtime.recvt.reset(new std::thread([&] {
+    auto thr = new std::thread([&] {
         runtime.cmdt.Recv(runtime.s2cBuf);
-    }));
+    });
+    // FIXME: would be cleaner to join on destruct, but detach will do for now
+    thr->detach();
+    runtime.recvt.reset(thr);
     return 0;
 }
 
@@ -99,7 +105,6 @@ int finaliseWebGPUDD() {
     return 0;
 }
 
-// TODO: need to figure out where to hide flush, or if it could be avoided altogether
 int webGPUDDFlush() {
     return runtime.c2sBuf->Flush();
 }

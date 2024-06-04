@@ -28,6 +28,7 @@ TCPCommandTransport::~TCPCommandTransport() noexcept {
     }
 }
 
+// TODO: args addr + port
 int TCPCommandClientConnection::initTCP() {
     struct addrinfo *srvaddrs;
     struct addrinfo hints;
@@ -63,6 +64,7 @@ int TCPCommandClientConnection::initTCP() {
     return 0;
 }
 
+// TODO: args socket path
 int TCPCommandClientConnection::initUnix() {
     struct sockaddr_un srv_addr;
     int connfd;
@@ -74,7 +76,7 @@ int TCPCommandClientConnection::initUnix() {
 
     std::memset(&srv_addr, 0, sizeof(srv_addr));
     srv_addr.sun_family = AF_UNIX;
-    strncpy(srv_addr.sun_path, "/tmp/dd-dawn.sock", sizeof(srv_addr.sun_path) - 1);
+    strncpy(srv_addr.sun_path, "/var/run/webgpu.sock", sizeof(srv_addr.sun_path) - 1);
 
     if (connect(connfd, (struct sockaddr *) &srv_addr, sizeof(srv_addr)) < 0) {
         return -errno;
@@ -112,7 +114,8 @@ int TCPCommandClientConnection::Init() {
 //#if __linux__
 //    return initVsock();
 //#else
-    return initTCP();
+    return initUnix();
+    //return initTCP();
 //#endif
 }
 
@@ -152,6 +155,9 @@ int TCPCommandTransport::Recv(RecvBuffer* rbuf) {
         if (nread <= 0) {
             if (nread == 0) {
                 return 0;
+            }
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                continue;
             }
             return -errno;
         }
