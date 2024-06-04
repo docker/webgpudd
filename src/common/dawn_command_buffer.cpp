@@ -2,7 +2,8 @@
 #include <iostream>
 #include <string>
 
-#include "command_buffer.h"
+#include "dawn_command_buffer.h"
+#include "dawn_command_transport.h"
 
 SendBuffer::SendBuffer() noexcept {}
 SendBuffer::~SendBuffer() noexcept {}

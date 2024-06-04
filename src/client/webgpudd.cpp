@@ -7,8 +7,8 @@
 #include <dawn/dawn_proc_table.h>
 #include <dawn/wire/WireClient.h>
 
-#include "../common/client_tcp.h"
-#include "../common/command_buffer.h"
+#include "dawn_client.h"
+#include "../common/dawn_command_buffer.h"
 
 void webGPUDDSetProcs(const DawnProcTable*);
 
@@ -16,15 +16,29 @@ void webgpuDDInstanceReference(WGPUInstance instance);
 void webGPUDDInstanceRelease(WGPUInstance instance);
 
 void webGPUDDInstanceProcessEvents(WGPUInstance instance);
-void webGPUDDInstanceRequestAdapter(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallback callback, void * userdata);
-WGPUFuture webGPUDDInstanceRequestAdapterF(WGPUInstance instance, WGPURequestAdapterOptions const * options, WGPURequestAdapterCallbackInfo callbackInfo);
-void webGPUDDAdapterRequestDevice(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallback callback, void * userdata);
-WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter, WGPUDeviceDescriptor const * descriptor, WGPURequestDeviceCallbackInfo callbackInfo);
+void webGPUDDInstanceRequestAdapter(WGPUInstance instance,
+                                    WGPURequestAdapterOptions const * options,
+                                    WGPURequestAdapterCallback callback,
+                                    void * userdata);
+WGPUFuture webGPUDDInstanceRequestAdapterF(WGPUInstance instance,
+                                           WGPURequestAdapterOptions const * options,
+                                           WGPURequestAdapterCallbackInfo callbackInfo);
+void webGPUDDAdapterRequestDevice(WGPUAdapter adapter,
+                                  WGPUDeviceDescriptor const * descriptor,
+                                  WGPURequestDeviceCallback callback,
+                                  void * userdata);
+WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter,
+                                         WGPUDeviceDescriptor const * descriptor,
+                                         WGPURequestDeviceCallbackInfo callbackInfo);
 
 WGPUAdapter webGPUDDDeviceGetAdapter(WGPUDevice device);
 WGPUInstance webGPUDDAdapterGetInstance(WGPUAdapter adapter);
 
-void webGPUDDQueueWriteBuffer(WGPUQueue queue, WGPUBuffer buffer, uint64_t bufferOffset, void const * data, size_t size);
+void webGPUDDQueueWriteBuffer(WGPUQueue queue,
+                              WGPUBuffer buffer,
+                              uint64_t bufferOffset,
+                              void const * data,
+                              size_t size);
 
 std::map<WGPUAdapter, WGPUInstance> adapterToInstance;
 std::map<WGPUDevice, WGPUAdapter> deviceToAdapter;
@@ -38,7 +52,7 @@ struct webGPUDDRuntime {
     RecvBuffer* s2cBuf;
     dawn::wire::ReservedInstance ri;
     bool instanceReserved;
-    TCPCommandClientConnection cmdt;
+    CommandTransport* cmdt;
 };
 
 static webGPUDDRuntime runtime;
@@ -54,16 +68,15 @@ int initWebGPUDD() {
 
     runtime.wireClient = new dawn::wire::WireClient(clientDesc);
 
-    // TODO:
+    // TODO: init based on environment
     // * init TCP
     // * init unix socket
-    int err = runtime.cmdt.Init();
-    if (err < 0) {
-        return err;
-    }
+    runtime.cmdt = client::connect_unix("/var/run/webgpu.sock");
+    if (!runtime.cmdt)
+        return -1;
 
     runtime.s2cBuf->SetHandler(runtime.wireClient);
-    runtime.c2sBuf->SetTransport(&runtime.cmdt);
+    runtime.c2sBuf->SetTransport(runtime.cmdt);
 
     webGPUDD_procs.instanceReference = webgpuDDInstanceReference;
     webGPUDD_procs.instanceRelease = webGPUDDInstanceRelease;
@@ -82,9 +95,9 @@ int initWebGPUDD() {
     webGPUDDSetProcs(&webGPUDD_procs);
 
     auto thr = new std::thread([&] {
-        runtime.cmdt.Recv(runtime.s2cBuf);
+        runtime.cmdt->Recv(runtime.s2cBuf);
     });
-    // FIXME: would be cleaner to join on destruct, but detach will do for now
+    // TODO: would be cleaner to join on destruct, but detach will do for now
     thr->detach();
     runtime.recvt.reset(thr);
     return 0;
@@ -93,15 +106,15 @@ int initWebGPUDD() {
 WGPUInstance getWebGPUDDInstance() {
     if (!runtime.instanceReserved) {
         runtime.ri = runtime.wireClient->ReserveInstance();
-        // FIXME: need to send id and generation to server
+        // TODO: need to send id and generation to server
         runtime.instanceReserved = true;
     }
     return runtime.ri.instance;
 }
 
 int finaliseWebGPUDD() {
-    runtime.cmdt.TCPCommandClientConnection::~TCPCommandClientConnection();
-    runtime.recvt->join();
+    runtime.cmdt->CommandTransport::~CommandTransport();
+    //runtime.recvt->join();
     return 0;
 }
 
@@ -134,9 +147,6 @@ void webGPUDDInstanceRelease(WGPUInstance instance) {
     finaliseWebGPUDD();
     runtime.wire_procs->instanceRelease(instance);
 }
-
-// TODO: request and process events should flush?
-// * wgpuInstanceWaitAny?
 
 void webGPUDDInstanceProcessEvents(WGPUInstance instance) {
     runtime.wire_procs->instanceProcessEvents(instance);

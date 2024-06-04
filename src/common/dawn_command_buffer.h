@@ -10,10 +10,7 @@ struct __attribute__((packed)) command_tlv {
     size_t len;
 };
 
-class CommandTransport {
-  public:
-    virtual int Send(char* buf, size_t sz) = 0;
-};
+class CommandTransport;
 
 class SendBuffer final : public dawn::wire::CommandSerializer {
   public:
@@ -51,4 +48,4 @@ class RecvBuffer final : public dawn::wire::CommandSerializer {
     std::array<char, 2000000> mBuffer;
 };
 
-#endif  // COMMAND_BUFFER_H
+#endif // COMMAND_BUFFER_H

@@ -8,9 +8,9 @@
 #include <dawn/native/DawnNative.h>
 #include <dawn/wire/WireServer.h>
 
-#include "../common/client_tcp.h"
-#include "../common/command_buffer.h"
-#include "server_tcp.h"
+#include "../common/dawn_command_buffer.h"
+#include "../common/dawn_command_transport.h"
+#include "dawn_server.h"
 
 class DDWGPUServer : public dawn::wire::CommandHandler {
   public:
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
         return -1;
     }
 
-    TCPCommandServer tcs;
+    FDPassingCommandServer tcs;
     int ret = tcs.Init(ctlSocket);
     if (ret) {
         std::cerr << "failed to initialise command server: " << ret << std::endl;
