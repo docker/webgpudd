@@ -1,0 +1,27 @@
+From 21f893e89952014d0274a7b7eb435d074c585fce Mon Sep 17 00:00:00 2001
+From: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
+Date: Wed, 5 Jun 2024 11:27:39 +0200
+Subject: [PATCH] Fix build on alpine
+
+Signed-off-by: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
+---
+ src/tint/utils/system/terminal_posix.cc | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/tint/utils/system/terminal_posix.cc b/src/tint/utils/system/terminal_posix.cc
+index e820774244..8a8b91a2d3 100644
+--- a/src/tint/utils/system/terminal_posix.cc
++++ b/src/tint/utils/system/terminal_posix.cc
+@@ -38,6 +38,9 @@
+ #include <string_view>
+ #include <utility>
+ 
++#include <sys/select.h>
++#include <sys/time.h>
++
+ #include "src/tint/utils/containers/vector.h"
+ #include "src/tint/utils/macros/compiler.h"
+ #include "src/tint/utils/macros/defer.h"
+-- 
+2.39.3 (Apple Git-146)
+
