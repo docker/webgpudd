@@ -34,6 +34,9 @@ WGPUFuture webGPUDDAdapterRequestDeviceF(WGPUAdapter adapter,
 WGPUAdapter webGPUDDDeviceGetAdapter(WGPUDevice device);
 WGPUInstance webGPUDDAdapterGetInstance(WGPUAdapter adapter);
 
+WGPUInstance webGPUDDCreateInstance(const WGPUInstanceDescriptor* desc);
+WGPUInstance webGPUDDCreateInstanceNop(const WGPUInstanceDescriptor* desc);
+
 void webGPUDDQueueWriteBuffer(WGPUQueue queue,
                               WGPUBuffer buffer,
                               uint64_t bufferOffset,
@@ -52,12 +55,26 @@ struct webGPUDDRuntime {
     RecvBuffer* s2cBuf;
     dawn::wire::ReservedInstance ri;
     bool instanceReserved;
+    bool threadRunning;
     CommandTransport* cmdt;
+    std::mutex instanceLock;
+    bool preinit_done;
 };
 
 static webGPUDDRuntime runtime;
 
-int initWebGPUDD() {
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// webgpudd_preinit does any set up which can survive a fork (note: in general
+// libwebgpu is not designed with being forked in mind), this is needed to work
+// with runwasi, most importantly so that the connection can be initialised while
+// we have a view of the root file system, but will be used later in the container,
+// this is also why we need to postpone setting up the receive thread until after
+// the fork
+int webgpudd_preinit()
+{
     runtime.wire_procs = &dawn::wire::client::GetProcs();
     webGPUDD_procs = dawn::wire::client::GetProcs();
     runtime.c2sBuf = new SendBuffer();
@@ -68,15 +85,14 @@ int initWebGPUDD() {
 
     runtime.wireClient = new dawn::wire::WireClient(clientDesc);
 
-    // TODO: init based on environment
-    // * init TCP
-    // * init unix socket
-    runtime.cmdt = client::connect_unix("/var/run/webgpu.sock");
+    runtime.cmdt = client::connect_unix("/run/host-services/webgpu.sock");
     if (!runtime.cmdt)
         return -1;
 
     runtime.s2cBuf->SetHandler(runtime.wireClient);
     runtime.c2sBuf->SetTransport(runtime.cmdt);
+
+    webGPUDD_procs.createInstance = webGPUDDCreateInstance;
 
     webGPUDD_procs.instanceReference = webgpuDDInstanceReference;
     webGPUDD_procs.instanceRelease = webGPUDDInstanceRelease;
@@ -93,6 +109,24 @@ int initWebGPUDD() {
     webGPUDD_procs.queueWriteBuffer = webGPUDDQueueWriteBuffer;
 
     webGPUDDSetProcs(&webGPUDD_procs);
+
+    runtime.preinit_done = true;
+
+    return 0;
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+int initWebGPUDD() {
+    if (!runtime.preinit_done) {
+        int ret = webgpudd_preinit();
+        if (ret)
+            return ret;
+    }
+
+    webGPUDD_procs.createInstance = webGPUDDCreateInstanceNop;
 
     auto thr = new std::thread([&] {
         runtime.cmdt->Recv(runtime.s2cBuf);
@@ -131,9 +165,15 @@ WGPUInstance webGPUDDAdapterGetInstance(WGPUAdapter adapter) {
 }
 
 WGPUInstance webGPUDDCreateInstance(const WGPUInstanceDescriptor* desc) {
+    std::lock_guard<std::mutex> guard(runtime.instanceLock);
     int ret = initWebGPUDD();
     if (ret)
         return nullptr;
+    return getWebGPUDDInstance();
+}
+
+WGPUInstance webGPUDDCreateInstanceNop(const WGPUInstanceDescriptor* desc) {
+    std::lock_guard<std::mutex> guard(runtime.instanceLock);
     return getWebGPUDDInstance();
 }
 

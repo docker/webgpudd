@@ -50,6 +50,8 @@ CommandTransport* client::connect_unix(const std::string& socketPath) {
     struct sockaddr_un srv_addr;
     int connfd;
 
+    //std::cerr << "libwebgpu: connecting to unix socket" << std::endl;
+
     connfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (connfd < 0) {
         std::cerr << "libwebgpu: failed to create unix socket: " << errno << std::endl;
