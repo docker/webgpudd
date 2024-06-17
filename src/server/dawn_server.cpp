@@ -1,6 +1,7 @@
 #include <array>
 #include <iostream>
 #include <string>
+#include <cstring>
 
 #include <errno.h>
 #include <unistd.h>
