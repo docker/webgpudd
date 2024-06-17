@@ -9,6 +9,7 @@ target_sources(webgpudd PRIVATE
     "../common/dawn_command_transport.h"
 )
 target_link_libraries(webgpudd PUBLIC
+    dawn_proc
     dawn_wire
     tint_lang_wgsl_reader_parser
 )
