@@ -55,3 +55,4 @@ tags
 
 #artifacts
 out/*
+out-*
