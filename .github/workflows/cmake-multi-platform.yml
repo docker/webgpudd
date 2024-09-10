@@ -26,12 +26,15 @@ jobs:
             cpp_compiler: g++
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: 'true'
 
     - name:  Install Ninja
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          apt install ninja
+          sudo apt-get install ninja
         elif [ "$RUNNER_OS" == "macOS" ]; then
           brew install ninja
         else
