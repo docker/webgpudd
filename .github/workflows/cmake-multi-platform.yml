@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     strategy:
-      fail-fast: false
+      fail-fast: true
 
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -34,7 +34,7 @@ jobs:
     - name:  Install Ninja
       run: |
         if [ "$RUNNER_OS" == "Linux" ]; then
-          sudo apt-get install ninja
+          sudo apt-get install ninja-build
         elif [ "$RUNNER_OS" == "macOS" ]; then
           brew install ninja
         else
