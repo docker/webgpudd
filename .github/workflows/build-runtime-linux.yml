@@ -1,0 +1,15 @@
+name: Build runtime for Linux
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build runtime for Linux
+      run: docker build --platform linux/amd64,linux/arm64 -f runtime-ubuntu.Dockerfile . --output type=local,dest=out
