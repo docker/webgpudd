@@ -19,4 +19,4 @@ jobs:
       uses: docker/setup-buildx-action@v3
       
     - name: Build runtime for Linux
-      run: docker buildx --platform linux/amd64,linux/arm64 -f runtime-ubuntu.Dockerfile . --output type=local,dest=out
+      run: docker buildx build --platform linux/amd64,linux/arm64 -f runtime-ubuntu.Dockerfile . --output type=local,dest=out
