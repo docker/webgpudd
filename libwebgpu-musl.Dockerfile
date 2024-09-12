@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM alpine:3.17 as build
-RUN apk add build-base linux-headers musl-dev git python3 curl make cmake
+RUN apk add build-base linux-headers musl-dev git python3 curl cmake ninja
 
 WORKDIR /build
 RUN mkdir webgpudd
@@ -22,8 +22,8 @@ WORKDIR /build/webgpudd
 RUN mkdir -p out/Release
 
 WORKDIR out/Release
-RUN cmake -D CMAKE_BUILD_TYPE=Release -D WEBGPUDD_BUILD_RUNTIME=OFF ../..
-RUN make -j 8 webgpudd
+RUN cmake -D CMAKE_BUILD_TYPE=Release -D WEBGPUDD_BUILD_RUNTIME=OFF -G Ninja ../..
+RUN ninja -j 8 webgpudd
 
 WORKDIR /build
 
