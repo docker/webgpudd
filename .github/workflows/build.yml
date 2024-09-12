@@ -1,0 +1,102 @@
+name: Build Linux artifacts
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: 'true'
+
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ vars.DOCKERPUBLICBOT_USERNAME }}
+        password: ${{ secrets.DOCKERPUBLICBOT_WRITE_PAT }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        version: lab:latest
+        driver: cloud
+        endpoint: docker/default
+        install: true
+
+    - name: Build runtime for Linux
+      run: docker buildx build --platform linux/amd64,linux/arm64 -f runtime-ubuntu.Dockerfile . --output type=local,dest=out-runtime
+
+    - name: Build client library for Linux (glibc)
+      run: docker buildx build --platform linux/amd64,linux/arm64 -f libwebgpu-glibc.Dockerfile . --output type=local,dest=out-client/glibc
+
+    - name: Build client library for Linux (musl)
+      run: docker buildx build --platform linux/amd64,linux/arm64 -f libwebgpu-musl.Dockerfile . --output type=local,dest=out-client/musl
+
+    - name: Upload Linux runtime artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: com.docker.docker.webgpu-runtime.linux
+        path: out-runtime/*
+        retention-days: 2
+        if-no-files-found: error
+
+    - name: Upload Linux client artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: libwebgpu
+        path: out-client/*
+        retention-days: 2
+        if-no-files-found: error
+
+  build_macos:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v4
+      with:
+        submodules: 'true'
+
+    - name:  Install Ninja and other build time dependencies
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          sudo apt-get install ninja-build libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+        elif [ "$RUNNER_OS" == "macOS" ]; then
+          brew install ninja
+        else
+          echo "$RUNNER_OS not supported"
+          exit 1
+        fi
+      shell: bash
+
+    - name: Set reusable strings
+      # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=g++
+        -DCMAKE_C_COMPILER=gcc
+        -DCMAKE_BUILD_TYPE=Release
+        -GNinja
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
+
+    - name: Upload macOS runtime artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: com.docker.docker.webgpu-runtime.darwin
+        path: ${{ steps.strings.outputs.build-output-dir }}/src/server/com.docker.webgpu-runtime
+        retention-days: 2
+        if-no-files-found: error
