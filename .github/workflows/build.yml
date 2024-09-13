@@ -5,6 +5,17 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Publish artifacts produced by this job'
+        required: false
+        type: boolean
+        default: false
+      releaseTag:
+        description: 'Release tag'
+        requred: false
+        type: string
 
 jobs:
   build_linux:
@@ -41,7 +52,7 @@ jobs:
     - name: Upload Linux runtime artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: com.docker.docker.webgpu-runtime.linux
+        name: com.docker.webgpu-runtime.linux
         path: out-runtime/*
         retention-days: 2
         if-no-files-found: error
@@ -49,7 +60,7 @@ jobs:
     - name: Upload Linux client artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: libwebgpu
+        name: libwebgpu.linux
         path: out-client/*
         retention-days: 2
         if-no-files-found: error
@@ -96,7 +107,42 @@ jobs:
     - name: Upload macOS runtime artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: com.docker.docker.webgpu-runtime.darwin
+        name: com.docker.webgpu-runtime.darwin
         path: ${{ steps.strings.outputs.build-output-dir }}/src/server/com.docker.webgpu-runtime
         retention-days: 2
         if-no-files-found: error
+
+  release:
+    if: inputs.release && github.actor == 'p1-0tr'
+    runs-on: ubuntu-latest
+    needs: [build_linux, build_macos]
+    steps:
+      - name: Download built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: 'pipeline-artifacts'
+      - name: Tidy up directory structure
+        shell: bash
+        run: |
+          mkdir release-artifacts
+          mv pipeline-artifacts/com.docker.webgpu-runtime.linux/linux_amd64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.linux.amd64
+          mv pipeline-artifacts/com.docker.webgpu-runtime.linux/linux_arm64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.linux.arm64
+          mv pipeline-artifacts/com.docker.webgpu-runtime.darwin/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.darwin.arm64
+          pushd pipeline-artifacts/libwebgpu.linux
+          for libc in musl glibc; do
+              for arch in amd64 arm64; do
+                  pushd "${libc}/linux_${arch}"
+                  tar -czvf libwebgpu.${libc}.linux.${arch}.tar.gz include libwebgpudd.so
+                  mv libwebgpu.${libc}.linux.${arch}.tar.gz ../../../../release-artifacts/.
+                  popd
+              done
+          done
+      - name: Publish artifacts
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: 'release-artifacts/*'
+          generateReleaseNotes: false
+          draft: true
+          commit: 'main'
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ inputs.releaseTag }}
