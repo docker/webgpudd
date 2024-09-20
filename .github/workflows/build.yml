@@ -40,8 +40,11 @@ jobs:
         endpoint: docker/default
         install: true
 
-    - name: Build runtime for Linux
-      run: docker buildx build --platform linux/amd64,linux/arm64 -f runtime-ubuntu.Dockerfile . --output type=local,dest=out-runtime
+    - name: Build runtime for Debian
+      run: docker buildx build --platform linux/amd64,linux/arm64 -f runtime-debian.Dockerfile . --output type=local,dest=out-runtime-debian
+
+    - name: Build runtime for RockyLinux
+      run: docker buildx build --platform linux/amd64,linux/arm64 -f runtime-rocky.Dockerfile . --output type=local,dest=out-runtime-rocky
 
     - name: Build client library for Linux (glibc)
       run: docker buildx build --platform linux/amd64,linux/arm64 -f libwebgpu-glibc.Dockerfile . --output type=local,dest=out-client/glibc
@@ -49,11 +52,19 @@ jobs:
     - name: Build client library for Linux (musl)
       run: docker buildx build --platform linux/amd64,linux/arm64 -f libwebgpu-musl.Dockerfile . --output type=local,dest=out-client/musl
 
-    - name: Upload Linux runtime artifacts
+    - name: Upload Debian Linux runtime artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: com.docker.webgpu-runtime.linux
-        path: out-runtime/*
+        name: com.docker.webgpu-runtime.debian
+        path: out-runtime-debian/*
+        retention-days: 2
+        if-no-files-found: error
+
+    - name: Upload Rocky Linux runtime artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: com.docker.webgpu-runtime.rockylinux
+        path: out-runtime-rocky/*
         retention-days: 2
         if-no-files-found: error
 
@@ -125,8 +136,10 @@ jobs:
         shell: bash
         run: |
           mkdir release-artifacts
-          mv pipeline-artifacts/com.docker.webgpu-runtime.linux/linux_amd64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.linux.amd64
-          mv pipeline-artifacts/com.docker.webgpu-runtime.linux/linux_arm64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.linux.arm64
+          mv pipeline-artifacts/com.docker.webgpu-runtime.debian/linux_amd64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.debian.amd64
+          mv pipeline-artifacts/com.docker.webgpu-runtime.debian/linux_arm64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.debian.arm64
+          mv pipeline-artifacts/com.docker.webgpu-runtime.rockylinux/linux_amd64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.rockylinux.amd64
+          mv pipeline-artifacts/com.docker.webgpu-runtime.rockylinux/linux_arm64/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.rockylinux.arm64
           mv pipeline-artifacts/com.docker.webgpu-runtime.darwin/com.docker.webgpu-runtime release-artifacts/com.docker.webgpu-runtime.darwin.arm64
           pushd pipeline-artifacts/libwebgpu.linux
           for libc in musl glibc; do
