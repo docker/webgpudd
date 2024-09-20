@@ -18,9 +18,11 @@ WORKDIR /build/webgpudd/third_party/dawn
 COPY 0001-DO-NOT-SUBMIT.patch .
 COPY 0001-Fix-build-on-debian-11.patch .
 COPY 0001-Fix-build-on-RockyLinux-8.9.patch .
+COPY 0001-Make-fetch_dawn_dependencies.py-work-with-python-3.6.patch .
 RUN patch -p1 < 0001-DO-NOT-SUBMIT.patch
 RUN patch -p1 < 0001-Fix-build-on-debian-11.patch
 RUN patch -p1 < 0001-Fix-build-on-RockyLinux-8.9.patch
+RUN patch -p1 < 0001-Make-fetch_dawn_dependencies.py-work-with-python-3.6.patch
 
 WORKDIR /build/webgpudd
 RUN mkdir -p out/Release
