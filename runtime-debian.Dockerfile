@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM ubuntu:22.04 as build
+FROM debian:11 AS build
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y git build-essential cmake python3 curl ninja-build
 
 WORKDIR /build
@@ -23,7 +23,7 @@ RUN mkdir -p out/Release
 
 WORKDIR out/Release
 RUN cmake -G Ninja -D CMAKE_BUILD_TYPE=Release -D DAWN_USE_X11=OFF ../..
-RUN ninja -j 8 com.docker.webgpu-runtime
+RUN cmake --build . --target com.docker.webgpu-runtime --config Release
 
 WORKDIR /build
 

@@ -1,12 +1,13 @@
-From c2205cccaab226708eec3cca6b1bb6501894b67c Mon Sep 17 00:00:00 2001
+From 625ba5b4c959e1a1d01020cd9d04846ecf764bde Mon Sep 17 00:00:00 2001
 From: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
 Date: Wed, 5 Jun 2024 13:23:01 +0200
 Subject: [PATCH] Fix build on debian 11
 
 Signed-off-by: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
 ---
- src/dawn/CMakeLists.txt | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ src/dawn/CMakeLists.txt        | 4 ++--
+ src/dawn/common/CMakeLists.txt | 1 +
+ 2 files changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/src/dawn/CMakeLists.txt b/src/dawn/CMakeLists.txt
 index 4bb4986886..f578d6ccce 100644
@@ -30,6 +31,18 @@ index 4bb4986886..f578d6ccce 100644
      "${DAWN_INCLUDE_DIR}/webgpu/webgpu_cpp.h"
      "${DAWN_INCLUDE_DIR}/webgpu/webgpu_enum_class_bitmasks.h"
      ${DAWNCPP_HEADERS_GEN_SOURCES}
+diff --git a/src/dawn/common/CMakeLists.txt b/src/dawn/common/CMakeLists.txt
+index 477ed12eb3..4a44a639d3 100644
+--- a/src/dawn/common/CMakeLists.txt
++++ b/src/dawn/common/CMakeLists.txt
+@@ -127,6 +127,7 @@ target_link_libraries(dawn_common
+     PUBLIC dawncpp_headers
+     PUBLIC partition_alloc
+     PRIVATE dawn_internal_config
++    PUBLIC dl
+ )
+ 
+ # TODO Android Log support
 -- 
 2.39.3 (Apple Git-146)
 

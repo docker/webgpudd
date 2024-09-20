@@ -1,0 +1,26 @@
+From 00b214d3ac190953b01c53362e3697738de29388 Mon Sep 17 00:00:00 2001
+From: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
+Date: Thu, 19 Sep 2024 17:36:15 +0200
+Subject: [PATCH] Fix build on RockyLinux 8.9
+
+Signed-off-by: Piotr Stankiewicz <piotr.stankiewicz@docker.com>
+---
+ CMakeLists.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9e2909323a..b787d4bffe 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -385,6 +385,8 @@ function(common_compile_options TARGET)
+       -Wno-deprecated-builtins
+       -Wno-unknown-warning-option
+       -Wno-switch-default
++      -Wno-unused-variable
++      -Wno-unused-but-set-variable
+     )
+ 
+     set(SANITIZER_OPTIONS "")
+-- 
+2.39.3 (Apple Git-146)
+

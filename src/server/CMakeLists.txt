@@ -11,4 +11,5 @@ target_link_libraries(com.docker.webgpu-runtime PUBLIC
     dawncpp
     dawn_native
     dawn_wire
+    dl
 )
