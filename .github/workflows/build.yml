@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       with:
         submodules: 'true'
 
@@ -53,7 +53,7 @@ jobs:
       run: docker buildx build --platform linux/amd64,linux/arm64 -f libwebgpu-musl.Dockerfile . --output type=local,dest=out-client/musl
 
     - name: Upload Debian Linux runtime artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: com.docker.webgpu-runtime.debian
         path: out-runtime-debian/*
@@ -61,7 +61,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload Rocky Linux runtime artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: com.docker.webgpu-runtime.rockylinux
         path: out-runtime-rocky/*
@@ -69,7 +69,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload Linux client artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: libwebgpu.linux
         path: out-client/*
@@ -80,7 +80,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: Checkout repo
-      uses: actions/checkout@v4
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       with:
         submodules: 'true'
 
@@ -116,7 +116,7 @@ jobs:
       run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config Release
 
     - name: Upload macOS runtime artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: com.docker.webgpu-runtime.darwin
         path: ${{ steps.strings.outputs.build-output-dir }}/src/server/com.docker.webgpu-runtime
@@ -129,7 +129,7 @@ jobs:
     needs: [build_linux, build_macos]
     steps:
       - name: Download built artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: 'pipeline-artifacts'
       - name: Tidy up directory structure
@@ -151,7 +151,7 @@ jobs:
               done
           done
       - name: Publish artifacts
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1
         with:
           artifacts: 'release-artifacts/*'
           generateReleaseNotes: false
